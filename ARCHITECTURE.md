@@ -1,165 +1,171 @@
 # Architecture — Agentic SDLC Platform
 
-Companion to [PLAN.md](./PLAN.md). This file goes deeper on contracts, control
-flow, and the agent runtime.
+Companion to [PLAN.md](./PLAN.md). Deep dive on the model-driven core, the
+runtime engines, the agent runtime, and control flow.
 
 ---
 
-## 1. Control Flow (one ticket, full cycle)
+## 1. The two databases
 
-```
-portal.fileTicket(desc)
-   └─► POST /backlog/tickets ─► DB row (FILED)
-       └─► emit ticket.created (NATS "tickets")
-            └─► orchestrator.onTicketCreated:
-                  start workflow(ticketId)  [Temporal]
-                  └─► activity dispatch(agent="triage")
-                       └─► POST agent-triage/run {ticketId}
-                            └─► triage: LLM classify+prioritize
-                            └─► PATCH ticket (status=TRIAGED, meta)
-                       └─► activity dispatch("requirements")
-                            └─► requirements agent: draft spec,
-                                optionally portal.ask(reporterId, Qs)
-                                (workflow pauses on human signal)
-                       └─► wait event approval.decided (SPEC_REVIEW)
-                       └─► dispatch("architect") → design doc
-                       └─► ... developer → reviewer → qa → deploy ...
-                       └─► ticket CLOSED; monitor agent subscribes.
-```
+- **Metadata DB** (Postgres) — the dictionary (see METADATA.md). Source of truth
+  for *what the system is*. Versioned, publishable, tenant-scoped.
+- **Tenant Data DB** (Postgres) — *business data*. Tables are created on demand
+  by `ddl-engine` (one real table per entity + JSONB overflow). Typed columns =
+  fast, queryable; overflow = flexible.
 
-The **orchestrator owns the state machine**; agents are stateless workers that
-receive a `task` payload and return a `result` + side-effects (git commits,
-PRs, comments). Pausing for human approval = Temporal `Signal`/`Timer`.
+Both managed by the same Postgres cluster, separate logical DBs, separate
+connection pools, separate backup schedules.
 
 ---
 
-## 2. Event Schema (append-only bus)
+## 2. The model-driven core (runtime engines)
 
-Streams: `tickets`, `specs`, `designs`, `changes`, `builds`, `approvals`,
-`agent.runs`, `incidents`.
+```
+                    ┌──────────────────────────────────────────┐
+                    │              METADATA DB                  │
+                    └─────────────────────┬────────────────────┘
+                                          │ read
+   ┌──────────────┬──────────────┬────────┴─────────┬──────────────┬──────────────┐
+   ▼              ▼              ▼                  ▼              ▼              ▼
+metadata-api   data-api     ddl-engine      workflow-engine   rules-engine   permissions
+ (CRUD dict)   (generic     (DDL from       (state machines   (triggered     -engine
+                CRUD over    metadata diff)  from workflows)   expressions)   (role/field/
+                any entity)                                                   row security)
+   │              │                                              │              │
+   └──────────────┴──────────────┬───────────────────────────────┴──────────────┘
+                                  ▼
+                          ui-registry ──► Portal (renderer)
+```
 
-Every event (canonical, JSON Schema-validated in `shared/proto`):
+- **metadata-api**: typed CRUD + validation + versioning over every dictionary
+  table. Drafts → publish.
+- **data-api**: given an entity name, reads its `fields` metadata and exposes
+  CRUD with validation, refs, filters, sorting, pagination, RLS. *The same
+  endpoint serves every entity.*
+- **ddl-engine**: on publish, diffs the new metadata vs current, emits idempotent
+  `up/down` SQL migrations, applies them to the Tenant Data DB, records a
+  `migrations` row.
+- **workflow-engine**: interprets `workflows`/`states`/`transitions`; moves
+  records through states; runs `actions` (call persona, set field, notify, run
+  rule, create record, call API); enforces SLAs.
+- **rules-engine**: evaluates `rules` on triggers (before/after CRUD, events,
+  cron) using a safe DSL (CEL/JSONLogic).
+- **permissions-engine**: gates every data-api + UI element from
+  `permissions`/`field_permissions`/`row_level_security`.
+- **ui-registry**: serves `views`/`menus`/`dashboards`/`actions` to the portal.
+
+These engines are **generic** — they have no knowledge of specific apps. All
+app behavior emerges from metadata. This is what makes the platform
+self-extending.
+
+---
+
+## 3. The Portal is a renderer, not a UI
+
+`portal` (Next.js) ships a fixed set of generic components:
+`ListView, FormView, DetailView, KanbanView, CalendarView, Dashboard,
+RecordRef, FieldEditor (per type), ActionMenu, NavTree`.
+
+At runtime it asks `ui-registry` for the view/menu and renders. Adding a new
+screen = adding metadata. (System apps — Admin, Users, Support, PMO,
+DevConsole — are seeded metadata, not bespoke code.) Anything the renderer
+can't express is a custom widget in `services/widgets/` via Track B.
+
+---
+
+## 4. AI workforce runtime
+
+One service, `agent-runtime`, runs a pool of workers. The orchestrator hands a
+task a **persona** (prompt + tools + budget + KPIs) — see PERSONAS.md.
+
+ReAct loop per task:
+```
+inject persona + context(task, rag_hits)
+loop until done | KPIs met | budget exhausted:
+    LLM(thought) ─► action(tool, args)   # only allow-listed tools
+    execute tool (sandboxed, traced)     ─► observation
+    append to trace
+emit task.finished { artifacts, tokens, cost, kpi_results }
+```
+- Tools are capability-scoped per persona and authorized by a signed capability
+  token minted by the orchestrator per task.
+- Track-A tools write metadata (via metadata-api). Track-B tools use the
+  sandbox (git/shell/build).
+- Every run → `agent_runs` (trace_id, tokens, cost) + OTel spans.
+
+---
+
+## 5. Orchestrator / workboard
+
+Built on **Temporal** for durable workflows:
+- Subscribes to `request.created`; loads the `raci_template` for its type.
+- Creates `project`/`stories`/`tasks`; assigns personas to free agents.
+- Drives each task through its workflow states; pauses on human gates
+  (Temporal Signals); enforces SLAs + escalations.
+- Emits events on the bus: `task.assigned`, `task.finished`, `gate.waiting`,
+  `deployment.done`, `incident.raised`.
+
+State lives in the metadata DB (`requests`, `tasks`, `deployments`, …); Temporal
+holds only the workflow orchestration state.
+
+---
+
+## 6. Event bus & contracts
+
+NATS JetStream. Streams: `requests`, `projects`, `tasks`, `metadata.published`,
+`workflows.transitioned`, `deployments`, `incidents`, `agent.runs`,
+`approvals`. Canonical event envelope + JSON Schema in `shared/proto`:
 ```json
-{
-  "id": "uuid",
-  "stream": "tickets",
-  "type": "ticket.created",
-  "ts": "2026-07-12T18:00:00Z",
-  "trace_id": "...",
-  "subject": "ticket:42",
-  "payload": { "ticket_id": 42, "project_id": 7, "reporter_id": 3 },
-  "version": 1
-}
+{ "id":"uuid","stream":"tasks","type":"task.finished",
+  "ts":"…","trace_id":"…","subject":"task:1234","payload":{…},"version":1 }
 ```
-Consumers are idempotent: dedupe on `event.id`, apply via `subject` ordering.
+Consumers are idempotent (dedupe on `id`, order on `subject`).
 
 ---
 
-## 3. Agent Runtime Contract
+## 7. Sandbox (Track B)
 
-All agent services implement the same interface:
-
+`sandbox` spins ephemeral Docker devboxes for code-track personas:
 ```
-POST /run
-  body: { task_id, ticket_id, inputs, tools_allowed, deadline, budget }
-  resp: 202 { run_id }
-GET  /runs/{run_id} → { status: running|done|failed, result, artifacts, logs, tokens, cost }
-POST /runs/{run_id}/cancel
+agent ──► sandbox.create({repo, branch}) ──► ws_url
+       ──► sandbox.exec(ws_url, ["pytest","build",...])
+       ──► sandbox.destroy(ws_url)
 ```
-
-Internally an agent run = ReAct loop:
-```
-system_prompt(role) + context(ticket, design, rag_hits) + toolset
-  └─ loop until done or budget exhausted:
-       LLM → thought + action(tool, args)
-       execute tool (sandboxed) → observation
-       append to trace
-  └─ emit agent.run.finished event with artifacts[]
-```
-
-**Tool registry** (capability-scoped per agent):
-
-| Agent | Tools |
-|---|---|
-| triage | readTicket, searchBacklog, setMeta |
-| requirements | readTicket, askHuman, writeSpec, searchDocs |
-| architect | readSpec, readCode(RAG), writeDesign, drawDiagram |
-| developer | gitClone, openBranch, editFiles, runShell(sandbox), commit, openPR |
-| reviewer | readPR, runTests, runSAST, commentPR, approvePR |
-| qa | gitClone, writeTests, runTests, reportCoverage |
-| deploy | buildImage, pushImage, deployTo(env), healthCheck, rollback |
-| monitor | queryMetrics, queryLogs, fileIncident, triggerRollback |
-
-Tools are implemented once in `shared/sdk-*` and authorized via a signed
-capability token minted by the orchestrator per run.
+No egress except an allow-list proxy (registry, git, llm-gateway). CPU/mem/time
+quotas. Source of truth stays in git.
 
 ---
 
-## 4. Sandbox Architecture
+## 8. LLM gateway, RAG, secrets
 
-`sandbox` service manages ephemeral dev environments for developer/qa/deploy:
-```
-agent-developer ──► sandbox.create({repo, branch, base_image})
-                       └─► docker run --network sandbox-net --pids-limit ...
-                            aisdlc/devbox:{repo} (git checkout, deps cached)
-                  ◄── ws_url (exec over HTTP/WS)
-agent-developer ──► sandbox.exec(ws_url, ["pytest"])
-                  ──► sandbox.destroy(ws_url)
-```
-- No network egress except an allow-list proxy (registry, git, llm-gateway).
-- CPU/mem/time quotas; auto-destroy on timeout.
-- Ephemeral; source of truth stays in git.
+- **llm-gateway** (LiteLLM): provider-agnostic, per-tenant keys/quotas, cost
+  metering, fallback chains, streaming + tool-calling, versioned prompts.
+- **knowledge** (Qdrant + LangChain): embeds metadata + code + docs; on
+  `pr.merged`/`metadata.published` re-indexes changed chunks. Personas call it
+  to ground decisions.
+- **secrets** (Vault): per-project/per-env credentials; never in agent env.
 
 ---
 
-## 5. RAG / Knowledge
+## 9. Observability & audit
 
-`knowledge` service keeps an indexed view of the project so agents have context
-without reading the whole repo:
-- On every `pr.merged`, re-embed changed files into **Qdrant**.
-- Index: code chunks (tree-sitter), docs, ADRs, past tickets+specs.
-- Query API: `POST /search { q, k, filter: {path, lang} }`.
-- Developer/architect/reviewer agents call it to ground decisions.
-
----
-
-## 6. LLM Gateway
-
-- Wraps providers (OpenAI, Anthropic, Bedrock, Ollama) behind one API.
-- Per-tenant keys & quotas; cost metering per `agent.run`.
-- Fallback chains (primary → fallback model).
-- Streaming + tool-calling normalized.
-- Prompt templates versioned in `services/llm-gateway/prompts/`.
+- **OpenTelemetry** end-to-end (Collector → Tempo/Loki/Prom/Grafana).
+- Per-request "flight recorder": timeline of personas, tokens, cost, diffs,
+  test results, approvals.
+- **audit** service: append-only, hashed log of every privileged action
+  (metadata publish, prod deploy, secret access) for compliance.
 
 ---
 
-## 7. Approvals (Human-in-the-loop)
-
-The `approvals` sub-system inside `backlog` (+ `notifications`):
-- Orchestrator creates `Approval(ref=spec:42, gate=SPEC_REVIEW)`.
-- `notifications` emails stakeholder a signed one-click link + portal task.
-- Decision → `approval.decided` event → orchestrator Signal resumes workflow.
-- SLA timers; escalations; auto-reject on timeout (configurable).
-
----
-
-## 8. Observability
-
-Every agent action carries `trace_id`/`span_id` (OpenTelemetry).
-- Collector → Tempo (traces), Loki (logs), Prometheus (metrics), Grafana (dashboards).
-- Per-ticket "flight recorder" view in portal: timeline of phases, tokens,
-  cost, diffs, test results.
-- Audit log (append-only, hashed) of every privileged tool call for compliance.
-
----
-
-## 9. Failure Modes & Mitigations
+## 10. Failure modes & mitigations
 
 | Risk | Mitigation |
 |---|---|
-| Agent hallucinates API | Reviewer + tests gate; sandbox reproducible build |
-| Infinite loops / runaway cost | Per-run budget (tokens/$/time) hard cap |
-| Bad merge | Mandatory tests + reviewer gate; one-click rollback |
-| Secret leak | Vault, no env in sandboxes, egress allow-list |
-| Provider outage | LLM gateway fallback chain |
+| Bad metadata bricks an app | Draft→validate→review→publish; instant rollback to prior bundle |
+| Agent hallucinated API/data | Permissions + validation gate every data-api call; tests + reviewer |
+| Runaway cost | Per-task budget (tokens/$/time) hard cap + tenant quotas in cost_ledger |
+| Bad prod change | ITIL change record + approval gate; one-click rollback; blue/green |
+| Secret leak | Vault, no agent env secrets, sandbox egress allow-list |
+| LLM outage | llm-gateway fallback chain |
 | Workflow stuck on approval | SLA timers + escalation to maintainer |
+| Self-build loops forever | Max iterations per project; CTO persona re-prioritizes; human escalation |

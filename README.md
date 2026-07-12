@@ -1,9 +1,11 @@
 # Agentic SDLC Platform
 
-An **AI-managed software development lifecycle**: stakeholders sign in, file
-tickets, and an autonomous multi-agent system runs the whole cycle —
-requirements → design → code → review → test → release → monitor — looping back
-into the backlog. Humans approve at gates; AI does the rest.
+An **AI-run IT department delivered as a service**. Stakeholders log in,
+request anything — a feature, a bug fix, support, a whole new application — and
+an **autonomous AI workforce** wearing many hats runs the entire lifecycle:
+intake, design, build, ship, support, monitor. It's **model-driven** (users,
+workflows, UIs, rules, roles — even the AI org chart — are metadata in the DB),
+so **the platform builds and extends itself**.
 
 **Microservices. Docker-first. One `docker compose up`.**
 
@@ -13,10 +15,12 @@ into the backlog. Humans approve at gates; AI does the rest.
 
 | Doc | What's inside |
 |---|---|
-| **[PLAN.md](./PLAN.md)** | The master plan: vision, goals, architecture, services catalog, roadmap pointer |
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Control flow, event schema, agent runtime contract, sandbox, RAG, observability |
-| **[AGENTS.md](./AGENTS.md)** | Per-agent specs: trigger, inputs/outputs, tools, gates, success criteria |
-| **[ROADMAP.md](./ROADMAP.md)** | Milestones M0→M5 with demoable checkpoints |
+| **[PLAN.md](./PLAN.md)** | Vision, the four pillars, architecture, services catalog, the self-build loop |
+| **[METADATA.md](./METADATA.md)** | ⭐ The data dictionary — entities, fields, UIs, workflows, rules, roles, personas, all as metadata |
+| **[PERSONAS.md](./PERSONAS.md)** | The AI org chart; workers vs personas (hats); RACI by metadata; multi-hat runtime |
+| **[LIFECYCLE.md](./LIFECYCLE.md)** | Request → project → delivery (Track A metadata / Track B code) → support loop |
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Model-driven core engines, generic data/UI runtime, agent runtime, control flow |
+| **[ROADMAP.md](./ROADMAP.md)** | Milestones M0→M7 |
 | **[SETUP.md](./SETUP.md)** | Local dev: prerequisites, `make` targets, port map |
 
 ---
@@ -24,33 +28,40 @@ into the backlog. Humans approve at gates; AI does the rest.
 ## TL;DR
 
 ```
-┌─────────────┐   file ticket   ┌───────────┐
-│  Stakeholder│ ───────────────► │  Backlog  │
-│   Portal    │ ◄── approvals ──└─────┬─────┘
-└─────────────┘                      │
-                            ┌────────▼─────────┐
-                            │   Orchestrator   │  ← ticket state machine
-                            └────────┬─────────┘
-        ┌──────────┬──────────┬──────┴───────┬──────────┬──────────┐
-        ▼          ▼          ▼              ▼          ▼          ▼
-    Triage   Requirements  Architect     Developer   Reviewer      QA
-                                                                  │
-                            … → Deploy → Monitor → (new tickets) ─┘
+Stakeholder ──"we need an Asset app"──► Request
+                                          │ (L1 Support triages)
+                            ┌─────────────▼──────────────┐
+                            │      Orchestrator          │ reads RACI template
+                            └─────────────┬──────────────┘
+            PM → BA → Architect → Metadata Engineer → Test → Release
+                          (personas assigned from the agent pool)
+                                          │
+                          AUTHOR METADATA → ddl-engine → PUBLISH
+                                          │
+              Asset Management app appears in the portal INSTANTLY:
+              CRUD, workflows, dashboards, roles. No code written.
+                                          │
+                          SRE monitors → Support helps → new requests → (loop)
 ```
 
-**19 services** (12 platform + 8 agent roles), each its own container, talking
-over **NATS**, durable workflows on **Temporal**, per-service **Postgres**,
-RAG via **Qdrant**, LLM access via **LiteLLM**, all under **OpenTelemetry**.
+- **~19 services**: model-driven core (7 engines) + platform (12) + workforce (2).
+- **Two delivery tracks**: Track A = metadata (instant, ~80% of requests);
+  Track B = real code via sandbox+VCS (full SDLC, ~20%).
+- **Multi-hat agents**: a worker pool takes on personas (PM, Architect, Dev,
+  QA, SRE, Support…). The org chart is metadata and can reorganize itself.
+- **Self-extending**: agents author metadata → publish → live. The platform
+  grows its own capabilities.
 
 ## Quick start (once M0 lands)
 ```bash
 cp .env.example .env
 docker compose up -d
-open http://localhost:3000     # portal
+open http://localhost:3000     # portal (renders from metadata)
 open http://localhost:3001     # grafana
 ```
 
 ## Status
-Planning complete. Implementation begins at **M0 — Bootstrap**
-(see [ROADMAP.md](./ROADMAP.md)). Estimated ~6–8 weeks to a full end-to-end
-vertical slice (file ticket → AI ships to prod → monitors itself).
+Planning complete. Implementation begins at **M0 — Bootstrap** then **M1 —
+Model-Driven Core** (the foundation everything else builds on). See
+[ROADMAP.md](./ROADMAP.md). Estimated ~8–10 weeks to a platform that builds
+both metadata and code apps autonomously.

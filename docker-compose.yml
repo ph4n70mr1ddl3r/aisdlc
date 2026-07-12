@@ -1,44 +1,54 @@
 # Agentic SDLC Platform — full stack
 # Bring up everything with:  docker compose up -d
-# See PLAN.md, ARCHITECTURE.md, ROADMAP.md, AGENTS.md for the design.
+# See PLAN.md, METADATA.md, PERSONAS.md, LIFECYCLE.md, ARCHITECTURE.md.
 #
 # Sections:
-#   1. Infrastructure (postgres, nats, redis, qdrant, vault, registry, otel)
-#   2. Platform services (gateway, identity, backlog, portal, orchestrator, ...)
-#   3. Agent services (one per SDLC phase)
+#   1. Infrastructure
+#   2. Model-Driven Core (the 7 engines that interpret metadata)
+#   3. Platform services
+#   4. AI Workforce (worker pool + workforce api; personas live in metadata DB)
 #
-# NOTE: service implementations land in milestones M0–M4 (see ROADMAP.md).
-# Infra services below are real and boot today; app services are stubbed
-# with build contexts that will be added per milestone.
+# NOTE: implementations land in milestones M0–M7 (see ROADMAP.md). Infra
+# services here boot today; app services are stubbed with build contexts.
 
 name: aisdlc
 
+# Reusable fragments (quoted so ${VAR} is YAML-safe; docker interpolates later)
 x-restart: &restart { restart: unless-stopped }
 x-otel-env: &otel-env
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
   OTEL_SERVICE_NAMESPACE: aisdlc
+x-meta-db: &meta-db "postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres-meta:5432/aisdlc_meta?sslmode=disable"
+x-data-db: &data-db "postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres-data:5432/aisdlc_data?sslmode=disable"
+x-nats: &nats nats://nats:4222
 
 # ───────────────────────── 1. INFRASTRUCTURE ─────────────────────────
 services:
 
-  postgres:
+  postgres-meta:                 # the metadata dictionary DB
     <<: *restart
     image: postgres:16-alpine
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: aisdlc
-    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: aisdlc_meta
+    volumes: [ "pgmeta:/var/lib/postgresql/data" ]
     ports: [ "5432:5432" ]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+    healthcheck: { test: ["CMD-SHELL","pg_isready -U postgres"], interval: 5s, timeout: 3s, retries: 20 }
+
+  postgres-data:                 # tenant/business data DB (tables created by ddl-engine)
+    <<: *restart
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: aisdlc_data
+    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    ports: [ "5433:5432" ]
+    healthcheck: { test: ["CMD-SHELL","pg_isready -U postgres"], interval: 5s, timeout: 3s, retries: 20 }
 
   nats:
     <<: *restart
     image: nats:2.10-alpine
-    command: ["-js", "-m", "8222"]          # JetStream + monitor
+    command: ["-js", "-m", "8222"]
     ports: [ "4222:4222", "8222:8222" ]
 
   redis:
@@ -57,7 +67,7 @@ services:
     image: hashicorp/vault:1.15
     cap_add: [ "IPC_LOCK" ]
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-root}
+      VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_ROOT_TOKEN:-root}"
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
     ports: [ "8200:8200" ]
 
@@ -102,118 +112,193 @@ services:
     <<: *restart
     image: grafana/grafana:latest
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
     ports: [ "3001:3000" ]
     volumes: ["grafana:/var/lib/grafana"]
     depends_on: [ prometheus, loki, tempo ]
 
-# ───────────────────────── 2. PLATFORM SERVICES ─────────────────────────
-# (Implemented in M0–M4. Build contexts point to services/<name>.)
+# ───────────────────── 2. MODEL-DRIVEN CORE ─────────────────────
+# Generic engines that interpret metadata. No app-specific knowledge.
+
+  metadata-api:
+    <<: [*restart, *otel-env]
+    build: ./services/core/metadata-api
+    environment:
+      OTEL_SERVICE_NAME: metadata-api
+      META_DB: *meta-db
+      NATS_URL: *nats
+    depends_on: { postgres-meta: { condition: service_healthy } }
+
+  data-api:
+    <<: [*restart, *otel-env]
+    build: ./services/core/data-api
+    environment:
+      OTEL_SERVICE_NAME: data-api
+      META_DB: *meta-db
+      DATA_DB: *data-db
+    depends_on:
+      postgres-meta: { condition: service_healthy }
+      postgres-data: { condition: service_healthy }
+
+  ddl-engine:
+    <<: [*restart, *otel-env]
+    build: ./services/core/ddl-engine
+    environment:
+      OTEL_SERVICE_NAME: ddl-engine
+      META_DB: *meta-db
+      DATA_DB: *data-db
+      NATS_URL: *nats
+    depends_on: { postgres-data: { condition: service_healthy } }
+
+  workflow-engine:
+    <<: [*restart, *otel-env]
+    build: ./services/core/workflow-engine
+    environment:
+      OTEL_SERVICE_NAME: workflow-engine
+      META_DB: *meta-db
+      NATS_URL: *nats
+
+  rules-engine:
+    <<: [*restart, *otel-env]
+    build: ./services/core/rules-engine
+    environment:
+      OTEL_SERVICE_NAME: rules-engine
+      META_DB: *meta-db
+      NATS_URL: *nats
+
+  permissions-engine:
+    <<: [*restart, *otel-env]
+    build: ./services/core/permissions-engine
+    environment:
+      OTEL_SERVICE_NAME: permissions-engine
+      META_DB: *meta-db
+
+  ui-registry:
+    <<: [*restart, *otel-env]
+    build: ./services/core/ui-registry
+    environment:
+      OTEL_SERVICE_NAME: ui-registry
+      META_DB: *meta-db
+
+# ───────────────────────── 3. PLATFORM SERVICES ─────────────────────────
 
   gateway:
     <<: [*restart, *otel-env]
-    build: ./services/gateway
+    build: ./services/platform/gateway
     environment: { OTEL_SERVICE_NAME: gateway }
     ports: [ "8080:8080" ]
     depends_on: [ identity ]
 
   identity:
     <<: [*restart, *otel-env]
-    build: ./services/identity
+    build: ./services/platform/identity
     environment:
       OTEL_SERVICE_NAME: identity
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
-      NATS_URL: nats://nats:4222
-      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-dev-secret}
-    depends_on:
-      postgres: { condition: service_healthy }
+      DATABASE_URL: *meta-db
+      NATS_URL: *nats
+      JWT_SIGNING_KEY: "${JWT_SIGNING_KEY:-dev-secret}"
+    depends_on: { postgres-meta: { condition: service_healthy } }
 
-  backlog:
+  portal:                        # generic UI renderer (reads metadata via ui-registry)
     <<: [*restart, *otel-env]
-    build: ./services/backlog
-    environment:
-      OTEL_SERVICE_NAME: backlog
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
-      NATS_URL: nats://nats:4222
-    depends_on:
-      postgres: { condition: service_healthy }
-
-  portal:
-    <<: [*restart, *otel-env]
-    build: ./services/portal
+    build: ./services/platform/portal
     environment:
       OTEL_SERVICE_NAME: portal
       NEXT_PUBLIC_API_URL: http://localhost:8080
+      UI_REGISTRY_URL: http://ui-registry:8000
     ports: [ "3000:3000" ]
-    depends_on: [ gateway ]
+    depends_on: [ gateway, ui-registry ]
 
-  orchestrator:
+  orchestrator:                  # Temporal-based workboard; routes requests→personas
     <<: [*restart, *otel-env]
-    build: ./services/orchestrator
+    build: ./services/platform/orchestrator
     environment:
       OTEL_SERVICE_NAME: orchestrator
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
-      NATS_URL: nats://nats:4222
-    depends_on:
-      postgres: { condition: service_healthy }
+      DATABASE_URL: *meta-db
+      NATS_URL: *nats
+    depends_on: { postgres-meta: { condition: service_healthy } }
 
-  vcs:
+  notifications:
     <<: [*restart, *otel-env]
-    build: ./services/vcs
-    volumes: [ "repos:/repos", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
+    build: ./services/platform/notifications
     environment:
-      OTEL_SERVICE_NAME: vcs
-      NATS_URL: nats://nats:4222
+      OTEL_SERVICE_NAME: notifications
+      DATABASE_URL: *meta-db
+      NATS_URL: *nats
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
 
   llm-gateway:
     <<: [*restart, *otel-env]
-    build: ./services/llm-gateway
+    build: ./services/platform/llm-gateway
     environment:
       OTEL_SERVICE_NAME: llm-gateway
       REDIS_URL: redis://redis:6379
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
 
   knowledge:
     <<: [*restart, *otel-env]
-    build: ./services/knowledge
+    build: ./services/platform/knowledge
     environment:
       OTEL_SERVICE_NAME: knowledge
       QDRANT_URL: http://qdrant:6333
-      NATS_URL: nats://nats:4222
+      NATS_URL: *nats
+
+  vcs:
+    <<: [*restart, *otel-env]
+    build: ./services/platform/vcs
+    volumes: [ "repos:/repos", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
+    environment:
+      OTEL_SERVICE_NAME: vcs
+      NATS_URL: *nats
 
   sandbox:
     <<: [*restart, *otel-env]
-    build: ./services/sandbox
+    build: ./services/platform/sandbox
     volumes: [ "/var/run/docker.sock:/var/run/docker.sock:ro", "sandbox-cache:/cache" ]
     environment:
       OTEL_SERVICE_NAME: sandbox
       REGISTRY: registry:5000
 
-  notifications:
+  audit:
     <<: [*restart, *otel-env]
-    build: ./services/notifications
+    build: ./services/platform/audit
     environment:
-      OTEL_SERVICE_NAME: notifications
-      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
-      NATS_URL: nats://nats:4222
-      SMTP_HOST: mailhog
-      SMTP_PORT: "1025"
+      OTEL_SERVICE_NAME: audit
+      DATABASE_URL: *meta-db
+      NATS_URL: *nats
 
-# ───────────────────────── 3. AGENT SERVICES ─────────────────────────
-# All agents share the same runtime contract; differing only in prompt + tools.
-# They are wired by the orchestrator, not by direct dependencies here.
+# ───────────────────────── 4. AI WORKFORCE ─────────────────────────
+# A pool of generic workers. Personas (hats) are metadata in the DB, not
+# separate services. Scale agent-runtime replicas to grow headcount.
 
-  agent-triage:        { <<: [*restart, *otel-env], build: ./services/agents/triage,        environment: { OTEL_SERVICE_NAME: agent-triage,        NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
-  agent-requirements:  { <<: [*restart, *otel-env], build: ./services/agents/requirements,  environment: { OTEL_SERVICE_NAME: agent-requirements,  NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
-  agent-architect:     { <<: [*restart, *otel-env], build: ./services/agents/architect,     environment: { OTEL_SERVICE_NAME: agent-architect,     NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
-  agent-developer:     { <<: [*restart, *otel-env], build: ./services/agents/developer,     environment: { OTEL_SERVICE_NAME: agent-developer,     NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, SANDBOX_URL: http://sandbox:8000 } }
-  agent-reviewer:      { <<: [*restart, *otel-env], build: ./services/agents/reviewer,      environment: { OTEL_SERVICE_NAME: agent-reviewer,      NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
-  agent-qa:            { <<: [*restart, *otel-env], build: ./services/agents/qa,            environment: { OTEL_SERVICE_NAME: agent-qa,            NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, SANDBOX_URL: http://sandbox:8000 } }
-  agent-deploy:        { <<: [*restart, *otel-env], build: ./services/agents/deploy,        environment: { OTEL_SERVICE_NAME: agent-deploy,        NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, VAULT_ADDR: http://vault:8200 } }
-  agent-monitor:       { <<: [*restart, *otel-env], build: ./services/agents/monitor,       environment: { OTEL_SERVICE_NAME: agent-monitor,       NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, PROM_URL: http://prometheus:9090 } }
+  workforce-api:                 # manages agents/personas/departments/cost ledger
+    <<: [*restart, *otel-env]
+    build: ./services/workforce/workforce-api
+    environment:
+      OTEL_SERVICE_NAME: workforce-api
+      DATABASE_URL: *meta-db
+      NATS_URL: *nats
+    depends_on: { postgres-meta: { condition: service_healthy } }
+
+  agent-runtime:                 # the ReAct worker pool (assign personas per task)
+    <<: [*restart, *otel-env]
+    build: ./services/workforce/agent-runtime
+    deploy: { replicas: 3 }
+    environment:
+      OTEL_SERVICE_NAME: agent-runtime
+      NATS_URL: *nats
+      LLM_GATEWAY: http://llm-gateway:8000
+      METADATA_API: http://metadata-api:8000
+      SANDBOX_URL: http://sandbox:8000
+      VCS_URL: http://vcs:8000
+      KNOWLEDGE_URL: http://knowledge:8000
+      WORKFORCE_API: http://workforce-api:8000
+    depends_on: [ llm-gateway, workforce-api ]
 
 volumes:
+  pgmeta: {}
   pgdata: {}
   qdrant: {}
   registry: {}

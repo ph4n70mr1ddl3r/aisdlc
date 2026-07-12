@@ -1,86 +1,88 @@
 # Roadmap — Agentic SDLC Platform
 
 Phased delivery. Each milestone is independently demoable and ends with a
-working `docker compose up`.
-
-Legend: ✅ done · 🔵 in progress · ⬜ next
+working `docker compose up`. The early milestones prioritize the **model-driven
+core** — because once that exists, the platform can start building itself.
 
 ---
 
 ## M0 — Bootstrap  ⬜  (~3 days)
-Goal: a runnable empty platform.
-- [ ] Repo scaffold (monorepo layout from PLAN §8)
-- [ ] `docker-compose.yml` with infra only (postgres, nats, redis, qdrant,
-      vault, otel-collector, grafana, loki, tempo, prometheus)
-- [ ] `shared/proto` event JSON schemas + generators
-- [ ] `shared/sdk-py` / `sdk-go` / `sdk-ts` skeletons (event bus client,
-      capability tokens, OTel init)
-- [ ] Base images `aisdlc/base-python`, `aisdlc/base-go`, `aisdlc/base-node`
-- [ ] `make up/down/logs/test` developer workflow
-**Demo:** `make up` → healthy Grafana + NATS, nothing else.
+Goal: runnable empty platform.
+- [ ] Repo scaffold (monorepo layout, PLAN §8)
+- [ ] `docker-compose.yml` infra (postgres×2, nats, redis, qdrant, vault,
+      registry, mailhog, otel stack, grafana)
+- [ ] `shared/proto` event schemas + `shared/sdk-*` skeletons
+- [ ] Base images (python/go/node) with OTel + sdk baked in
+- [ ] `make up/down/logs/test`
+**Demo:** `make up` → healthy Grafana + NATS; nothing else.
+
+## M1 — Model-Driven Core  ⬜  (~1.5 weeks)  ⭐ foundation
+Goal: define an app purely as metadata and see it work.
+- [ ] `metadata-api`: typed CRUD over Layers 0–3 (tenants, users, apps, entities,
+      fields, relationships, views, menus)
+- [ ] `ddl-engine`: diff metadata → idempotent SQL migrations → apply to Tenant DB
+- [ ] `data-api`: generic CRUD over any entity (validation, refs, filters, RLS stub)
+- [ ] `permissions-engine`: role × entity × action (field/row-level later)
+- [ ] `ui-registry` + `portal` generic renderer (list/form/detail/nav)
+- [ ] Seed the **Users** app as pure metadata; manage platform users through it
+**Demo:** Add an "Asset" entity via API → portal shows Asset list/form instantly.
+
+## M2 — Identity + Requests + Workboard  ⬜  (~1 week)
+Goal: stakeholders sign up, file requests, orchestrator routes them.
+- [ ] `identity`: signup/login (JWT), tenants, roles, email verify (mailhog)
+- [ ] `gateway`: Traefik routing + JWT forwarding
+- [ ] Seed **Support** + **PMO** apps (Request, Project, Task) as metadata
+- [ ] `orchestrator`: Temporal skeleton; `request.created` → create project/tasks
+- [ ] `notifications`: in-app + email
+- [ ] Workboard view in portal (Track A!)
+**Demo:** Sign up → file "add timesheet app" → see routed project in workboard.
+
+## M3 — First personas + self-build  ⬜  (~1.5 weeks)  ⭐ magic moment
+Goal: AI delivers a new app end-to-end as metadata.
+- [ ] `llm-gateway` (LiteLLM) with one provider, cost metering
+- [ ] `workforce-api` + `agent-runtime` pool + persona injection
+- [ ] Seed personas: L1 Support, Product Manager, Business Analyst,
+      Solution Architect, Metadata Engineer, Test Engineer, Release Manager
+- [ ] `knowledge` RAG seeded over the metadata dictionary
+- [ ] Orchestrator wires intake → requirements → design → author metadata →
+      validate → publish (with spec + publish approval gates)
+**Demo:** File "we need an Asset Management app" → AI designs + builds it →
+appears live in portal. No code written.
+
+## M4 — Workflow / Rules / Permissions engines  ⬜  (~1 week)
+Goal: full dynamic business logic.
+- [ ] `workflow-engine` (states/transitions/actions/SLAs) interpreting metadata
+- [ ] `rules-engine` (CEL/JSONLogic) on CRUD/event/cron triggers
+- [ ] Field-level + row-level security in `permissions-engine`
+- [ ] Kanban/calendar/dashboard views in renderer
+**Demo:** Asset lifecycle workflow + "on employee exit → return assets" rule.
+
+## M5 — Code track (Track B)  ⬜  (~2 weeks)
+Goal: AI ships real services via sandbox + VCS.
+- [ ] `vcs` (git repo mgmt, branches, PRs)
+- [ ] `sandbox` ephemeral devboxes (Docker, allow-listed egress)
+- [ ] Personas: Backend/Frontend/Platform Engineer, SDET, Security Analyst, SRE
+- [ ] Custom-widget pipeline (`services/widgets/` → published to portal)
+- [ ] Full SDLC: design → code → test → review → merge → deploy (gated)
+**Demo:** Request a custom 3D model viewer widget → AI builds, tests, ships it.
+
+## M6 — Support & continuous loop  ⬜  (~1 week)
+Goal: incidents → auto-requests → improvement.
+- [ ] Monitor (SRE) persona: scrape Prom/tail Loki, SLO breach → incident
+- [ ] L2 Support persona: diagnose, reproduce, escalate, write knowledge articles
+- [ ] Auto-file requests from incidents; link them to projects
+- [ ] Persona evals: closed tasks → RAG + prompt regression suite
+**Demo:** Kill a service → incident → auto-request → AI fixes → ships → resolved.
+
+## M7 — Scale & governance  ⬜  (ongoing)
+- [ ] True multi-tenant isolation + per-tenant cost budgets (`cost_ledger`)
+- [ ] CTO persona: portfolio prioritization, workforce right-sizing, model mix
+- [ ] Compliance/Audit persona: policy enforcement, data classification
+- [ ] Blue/green + canary deploys; full rollback automation
+- [ ] k8s/Helm for prod runtime (optional)
 
 ---
 
-## M1 — Foundation  ⬜  (~1 week)
-Goal: a stakeholder can sign up, log in, and file a ticket.
-- [ ] `identity`: signup/login (JWT), roles, email verify (mock SMTP)
-- [ ] `gateway`: Traefik routing, forwards JWT to services
-- [ ] `backlog`: CRUD tickets, projects, emit `ticket.created`
-- [ ] `portal`: Next.js — auth, ticket form, list view
-- [ ] `notifications`: in-app + email (mailhog in dev)
-- [ ] `orchestrator`: Temporal skeleton, subscribes to `ticket.created`,
-      logs only (no agents yet)
-**Demo:** Create account → file "make logo bigger" → see it in portal + NATS.
-
----
-
-## M2 — First Agent Loop  ⬜  (~1 week)
-Goal: triage + requirements agents, full loop with one human approval.
-- [ ] `llm-gateway` (LiteLLM) with one provider key, cost metering
-- [ ] `agent-triage`: classify/prioritize, update ticket meta
-- [ ] `agent-requirements`: draft spec from ticket, optional clarifying Qs
-- [ ] Approval flow for `SPEC_REVIEW` (email + portal)
-- [ ] Orchestrator wires FILED → TRIAGED → SPEC_DRAFTING → SPEC_APPROVED
-- [ ] Flight-recorder timeline in portal
-**Demo:** File ticket → AI drafts spec → you approve in portal.
-
----
-
-## M3 — Code Agents  ⬜  (~2 weeks)
-Goal: AI opens a real PR against a sample repo.
-- [ ] `vcs`: manage git repo (bare repos on volume), branch/PR API
-- [ ] `sandbox`: ephemeral devboxes via Docker, allow-listed egress
-- [ ] `knowledge`: Qdrant ingest of a sample repo (tree-sitter chunks)
-- [ ] `agent-architect`: design doc from approved spec + RAG
-- [ ] `agent-developer`: ReAct loop, edits files in sandbox, commits, opens PR
-- [ ] `agent-qa`: generates + runs tests in sandbox, reports coverage
-- [ ] `agent-reviewer`: reviews PR, runs SAST, comments / approves
-- [ ] Orchestrator wires SPEC_APPROVED → ... → PR_READY (human merge gate)
-**Demo:** Approve spec → AI designs, codes, tests, reviews → PR opens.
-
----
-
-## M4 — Release  ⬜  (~1 week)
-Goal: ship to staging, approve, ship to prod, then monitor.
-- [ ] `agent-deploy`: build image, push to local registry, deploy to
-      `staging` docker compose project, healthcheck
-- [ ] UAT approval gate → `prod` deploy (blue/green or recreate)
-- [ ] Rollback tooling (image tags, one click)
-- [ ] `agent-monitor`: scrape Prom metrics, tail Loki, file incident tickets
-      on SLO breach, auto-rollback on hard failure
-- [ ] Secrets via Vault injected per env
-**Demo:** Approve UAT → prod deploy → kill a service → monitor auto-files ticket.
-
----
-
-## M5 — Self-Improvement & Polish  ⬜  (ongoing)
-- [ ] Feedback loop: closed tickets feed RAG + prompt evals
-- [ ] Per-project config of gates, models, budgets
-- [ ] Multi-project, RBAC, audit export
-- [ ] Cost dashboards per tenant
-- [ ] Migrate prod runtime to Kubernetes (Helm chart) — optional
-
----
-
-## Effort estimate (1–2 engineers)
-~6–8 weeks to M4 (vertical slice, end-to-end single ticket). M5 is continuous.
+## Effort estimate
+~8–10 weeks (1–2 engineers) to **M5** = a platform that builds both metadata
+and code apps autonomously. M6–M7 turn it into a production IT department.
