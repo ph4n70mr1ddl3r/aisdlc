@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aisdlc/proto/envelope.schema.json",
+  "title": "EventEnvelope",
+  "description": "Canonical event envelope on the NATS JetStream bus (ARCHITECTURE.md §6). Every event is published wrapped in an Envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "stream", "type", "ts", "subject", "payload", "version"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Event UUID. Consumers MUST dedupe on this (JetStream redelivers)."
+    },
+    "stream": {
+      "type": "string",
+      "description": "JetStream stream name (see events.json)."
+    },
+    "type": {
+      "type": "string",
+      "description": "Event type, e.g. 'task.finished'."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the event was produced (RFC 3339, UTC)."
+    },
+    "trace_id": {
+      "type": ["string", "null"],
+      "description": "OpenTelemetry trace id, so spans stitch across services."
+    },
+    "subject": {
+      "type": "string",
+      "description": "NATS subject carrying the entity id, e.g. 'task:1234'. Consumers order on this."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Type-specific payload. Its shape is defined per event type in events.json."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Envelope schema version (currently 1)."
+    }
+  }
+}

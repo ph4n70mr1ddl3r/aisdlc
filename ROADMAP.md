@@ -8,12 +8,12 @@ core** — because once that exists, the platform can start building itself.
 
 ## M0 — Bootstrap  ⬜  (~3 days)
 Goal: runnable empty platform.
-- [ ] Repo scaffold (monorepo layout, PLAN §8)
-- [ ] `docker-compose.yml` infra (postgres×2, nats, redis, qdrant, vault,
+- [x] Repo scaffold (monorepo layout, PLAN §8)
+- [x] `docker-compose.yml` infra (postgres×2, nats, redis, qdrant, vault,
       registry, otel stack, grafana)
-- [ ] `shared/proto` event schemas + `shared/sdk-*` skeletons
-- [ ] Base images (python/go/node) with OTel + sdk baked in
-- [ ] `make up/down/logs/test`
+- [x] `shared/proto` event schemas + `shared/sdk-*` skeletons
+- [ ] Base images (python/go/node) with OTel + sdk baked in _(deferred to M1 when real services land; stubs already carry OTel env)_
+- [x] `make up/down/logs/test`
 **Demo:** `make up` → healthy Grafana + NATS; nothing else.
 
 ## M1 — Model-Driven Core  ⬜  (~1.5 weeks)  ⭐ foundation

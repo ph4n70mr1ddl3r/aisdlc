@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aisdlc/proto/events.json",
+  "title": "AISDLC Event Catalog",
+  "description": "Streams + event types on the NATS JetStream bus. Each event is wrapped by the Envelope (envelope.schema.json). Consumers are idempotent: dedupe on envelope.id, order on envelope.subject. See ARCHITECTURE.md §6 and METADATA.md.",
+  "version": 1,
+  "streams": {
+    "requests":    { "subject_prefix": "request",  "description": "Stakeholder requests (METADATA Layer 8)." },
+    "projects":    { "subject_prefix": "project",  "description": "Delivery projects, epics, stories." },
+    "tasks":       { "subject_prefix": "task",     "description": "Units of agent work." },
+    "metadata":    { "subject_prefix": "app",      "description": "Metadata publish/rollback (Track A)." },
+    "workflows":   { "subject_prefix": "record",   "description": "Workflow state transitions + human gates." },
+    "deployments": { "subject_prefix": "deploy",   "description": "Builds, env promotion, deploys." },
+    "incidents":   { "subject_prefix": "incident", "description": "SRE incidents (ITIL)." },
+    "agent_runs":  { "subject_prefix": "run",      "description": "Agent-runtime executions." },
+    "approvals":   { "subject_prefix": "approval", "description": "Human/machine approval gates." }
+  },
+  "events": {
+    "request.created": {
+      "stream": "requests",
+      "subject": "request:{request_id}",
+      "payload": {
+        "type": "object",
+        "required": ["request_id", "type_id", "title", "requester_id", "tenant_id"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "type_id": { "type": "string", "description": "FK request_types (feature/bug/support/...)" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "requester_id": { "type": "string" },
+          "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"] },
+          "tenant_id": { "type": "string" }
+        }
+      }
+    },
+    "request.classified": {
+      "stream": "requests",
+      "subject": "request:{request_id}",
+      "payload": {
+        "type": "object",
+        "required": ["request_id", "type_id", "impact", "urgency"],
+        "properties": {
+          "request_id": { "type": "string" },
+          "type_id": { "type": "string" },
+          "impact": { "type": "string", "enum": ["low", "medium", "high"] },
+          "urgency": { "type": "string", "enum": ["low", "medium", "high"] },
+          "duplicate_of": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "project.created": {
+      "stream": "projects",
+      "subject": "project:{project_id}",
+      "payload": {
+        "type": "object",
+        "required": ["project_id", "request_id", "name", "method"],
+        "properties": {
+          "project_id": { "type": "string" },
+          "request_id": { "type": "string" },
+          "name": { "type": "string" },
+          "method": { "type": "string", "enum": ["scrum", "kanban"] }
+        }
+      }
+    },
+    "task.assigned": {
+      "stream": "tasks",
+      "subject": "task:{task_id}",
+      "payload": {
+        "type": "object",
+        "required": ["task_id", "persona_id", "agent_id"],
+        "properties": {
+          "task_id": { "type": "string" },
+          "story_id": { "type": ["string", "null"] },
+          "persona_id": { "type": "string", "description": "The hat (METADATA Layer 7)" },
+          "agent_id": { "type": "string", "description": "The worker in the pool" },
+          "budget_tokens": { "type": "integer" }
+        }
+      }
+    },
+    "task.finished": {
+      "stream": "tasks",
+      "subject": "task:{task_id}",
+      "payload": {
+        "type": "object",
+        "required": ["task_id", "status"],
+        "properties": {
+          "task_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["done", "rejected", "escalated"] },
+          "artifacts": { "type": "array", "items": { "type": "string" } },
+          "tokens": { "type": "integer" },
+          "cost_usd": { "type": "number" },
+          "verify_status": { "type": "string", "enum": ["self_check", "reviewed", "failed"] },
+          "kpi_results": { "type": "object" }
+        }
+      }
+    },
+    "agent.run.started": {
+      "stream": "agent_runs",
+      "subject": "run:{run_id}",
+      "payload": {
+        "type": "object",
+        "required": ["run_id", "task_id", "agent_id", "persona_id"],
+        "properties": {
+          "run_id": { "type": "string" },
+          "task_id": { "type": "string" },
+          "agent_id": { "type": "string" },
+          "persona_id": { "type": "string" },
+          "model": { "type": "string" }
+        }
+      }
+    },
+    "agent.run.finished": {
+      "stream": "agent_runs",
+      "subject": "run:{run_id}",
+      "payload": {
+        "type": "object",
+        "required": ["run_id", "task_id", "status", "duration_ms"],
+        "properties": {
+          "run_id": { "type": "string" },
+          "task_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["ok", "error", "budget_exceeded"] },
+          "tokens_in": { "type": "integer" },
+          "tokens_out": { "type": "integer" },
+          "cost_usd": { "type": "number" },
+          "duration_ms": { "type": "integer" },
+          "verify_status": { "type": "string", "enum": ["self_check", "reviewed", "failed"] },
+          "retries": { "type": "integer" }
+        }
+      }
+    },
+    "metadata.published": {
+      "stream": "metadata",
+      "subject": "app:{app_id}",
+      "payload": {
+        "type": "object",
+        "required": ["app_id", "bundle_id", "version"],
+        "properties": {
+          "app_id": { "type": "string" },
+          "bundle_id": { "type": "string", "description": "FK metadata_bundles" },
+          "version": { "type": "string" },
+          "migrations": { "type": "array", "items": { "type": "string" } },
+          "tenant_id": { "type": "string" }
+        }
+      }
+    },
+    "metadata.rollback": {
+      "stream": "metadata",
+      "subject": "app:{app_id}",
+      "payload": {
+        "type": "object",
+        "required": ["app_id", "rollback_to_version"],
+        "properties": {
+          "app_id": { "type": "string" },
+          "rollback_to_version": { "type": "string" }
+        }
+      }
+    },
+    "workflows.transitioned": {
+      "stream": "workflows",
+      "subject": "record:{entity}:{record_id}",
+      "payload": {
+        "type": "object",
+        "required": ["workflow_id", "record_id", "from_state", "to_state"],
+        "properties": {
+          "workflow_id": { "type": "string" },
+          "entity": { "type": "string" },
+          "record_id": { "type": "string" },
+          "from_state": { "type": "string" },
+          "to_state": { "type": "string" },
+          "via_transition": { "type": "string" }
+        }
+      }
+    },
+    "gate.waiting": {
+      "stream": "workflows",
+      "subject": "gate:{gate_id}",
+      "payload": {
+        "type": "object",
+        "required": ["gate_id", "kind", "record_ref"],
+        "properties": {
+          "gate_id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["spec", "design", "change", "uat", "deploy", "custom"] },
+          "record_ref": { "type": "string" },
+          "approver_role_id": { "type": "string" }
+        }
+      }
+    },
+    "deployment.created": {
+      "stream": "deployments",
+      "subject": "deploy:{deployment_id}",
+      "payload": {
+        "type": "object",
+        "required": ["deployment_id", "build_id", "env"],
+        "properties": {
+          "deployment_id": { "type": "string" },
+          "build_id": { "type": "string" },
+          "env": { "type": "string", "enum": ["dev", "staging", "prod"] }
+        }
+      }
+    },
+    "deployment.done": {
+      "stream": "deployments",
+      "subject": "deploy:{deployment_id}",
+      "payload": {
+        "type": "object",
+        "required": ["deployment_id", "env", "status"],
+        "properties": {
+          "deployment_id": { "type": "string" },
+          "env": { "type": "string", "enum": ["dev", "staging", "prod"] },
+          "status": { "type": "string", "enum": ["healthy", "rolled_back", "failed"] },
+          "approver_id": { "type": "string" }
+        }
+      }
+    },
+    "incident.raised": {
+      "stream": "incidents",
+      "subject": "incident:{incident_id}",
+      "payload": {
+        "type": "object",
+        "required": ["incident_id", "service", "severity"],
+        "properties": {
+          "incident_id": { "type": "string" },
+          "service": { "type": "string" },
+          "severity": { "type": "string", "enum": ["sev1", "sev2", "sev3", "sev4"] },
+          "linked_request_id": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "incident.resolved": {
+      "stream": "incidents",
+      "subject": "incident:{incident_id}",
+      "payload": {
+        "type": "object",
+        "required": ["incident_id", "root_cause"],
+        "properties": {
+          "incident_id": { "type": "string" },
+          "root_cause": { "type": "string" }
+        }
+      }
+    },
+    "approval.requested": {
+      "stream": "approvals",
+      "subject": "approval:{approval_id}",
+      "payload": {
+        "type": "object",
+        "required": ["approval_id", "kind", "target_ref"],
+        "properties": {
+          "approval_id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["spec", "design", "change", "uat", "deploy", "custom"] },
+          "target_ref": { "type": "string" },
+          "approver_role_id": { "type": "string" }
+        }
+      }
+    },
+    "approval.decided": {
+      "stream": "approvals",
+      "subject": "approval:{approval_id}",
+      "payload": {
+        "type": "object",
+        "required": ["approval_id", "decision"],
+        "properties": {
+          "approval_id": { "type": "string" },
+          "decision": { "type": "string", "enum": ["approved", "rejected"] },
+          "decided_by": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

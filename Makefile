@@ -48,8 +48,10 @@ logs: ## Tail logs, optionally SVC=portal
 ps: ## Show container/service status
 	$(COMPOSE) ps
 
-test: ## Run tests (placeholder until services land)
-	@echo "No tests yet — per-service tests arrive with each milestone."
+test: ## Validate shared proto + compile-check the SDKs
+	@python3 -c "import json; [json.load(open(f)) for f in ['shared/proto/envelope.schema.json','shared/proto/events.json']]" && echo "proto JSON OK"
+	@python3 -m py_compile shared/sdk-py/aisdlc/*.py && echo "sdk-py OK"
+	@if command -v go >/dev/null 2>&1; then (cd shared/sdk-go && go build ./...) && echo "sdk-go OK"; else echo "(go not installed — skip sdk-go)"; fi
 
 dev: ensure-secrets ## Hot-reload one service (SVC=portal) via docker-compose.dev.yml
 	$(COMPOSE) --profile app -f docker-compose.yml -f docker-compose.dev.yml up $(SVC)
