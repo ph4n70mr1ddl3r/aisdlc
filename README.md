@@ -15,7 +15,7 @@ so **the platform builds and extends itself**.
 
 | Doc | What's inside |
 |---|---|
-| **[PLAN.md](./PLAN.md)** | Vision, the four pillars, architecture, services catalog, the self-build loop |
+| **[PLAN.md](./PLAN.md)** | Vision, the five pillars, architecture, services catalog, the self-build loop |
 | **[METADATA.md](./METADATA.md)** | ⭐ The data dictionary — entities, fields, UIs, workflows, rules, roles, personas, all as metadata |
 | **[PERSONAS.md](./PERSONAS.md)** | The AI org chart; workers vs personas (hats); RACI by metadata; multi-hat runtime |
 | **[LIFECYCLE.md](./LIFECYCLE.md)** | Request → project → delivery (Track A metadata / Track B code) → support loop |
@@ -62,7 +62,8 @@ open http://localhost:3001     # grafana
 ```
 
 ## Status
-Planning complete. Implementation begins at **M0 — Bootstrap** then **M1 —
-Model-Driven Core** (the foundation everything else builds on). See
-[ROADMAP.md](./ROADMAP.md). Estimated ~8–10 weeks to a platform that builds
-both metadata and code apps autonomously.
+**M0 — Bootstrap** is complete (runnable infra + shared SDKs). **M1 —
+Model-Driven Core** is in progress: `metadata-api` (dictionary CRUD over
+Layers 0–3) has landed; `ddl-engine`, `data-api`, `permissions-engine`, and the
+portal renderer follow. See [ROADMAP.md](./ROADMAP.md). Estimated ~8–10 weeks
+to a platform that builds both metadata and code apps autonomously.

@@ -120,9 +120,11 @@ holds only the workflow orchestration state.
 
 ## 6. Event bus & contracts
 
-NATS JetStream. Streams: `requests`, `projects`, `tasks`, `metadata.published`,
-`workflows.transitioned`, `deployments`, `incidents`, `agent.runs`,
-`approvals`. Canonical event envelope + JSON Schema in `shared/proto`:
+NATS JetStream. Streams: `requests`, `projects`, `tasks`, `metadata`,
+`workflows`, `deployments`, `incidents`, `agent_runs`, `approvals` (defined in
+`shared/proto/events.json`); each stream carries event types such as
+`metadata.published` / `workflows.transitioned` / `agent.run.finished`.
+Canonical event envelope + JSON Schema in `shared/proto`:
 ```json
 { "id":"uuid","stream":"tasks","type":"task.finished",
   "ts":"…","trace_id":"…","subject":"task:1234","payload":{…},"version":1 }

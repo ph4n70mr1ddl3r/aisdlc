@@ -52,6 +52,7 @@ test: ## Validate shared proto + compile-check the SDKs
 	@python3 -c "import json; [json.load(open(f)) for f in ['shared/proto/envelope.schema.json','shared/proto/events.json']]" && echo "proto JSON OK"
 	@python3 -m py_compile shared/sdk-py/aisdlc/*.py && echo "sdk-py OK"
 	@if command -v go >/dev/null 2>&1; then (cd shared/sdk-go && go build ./...) && echo "sdk-go OK"; else echo "(go not installed — skip sdk-go)"; fi
+	@if [ -x shared/sdk-ts/node_modules/.bin/tsc ]; then (cd shared/sdk-ts && ./node_modules/.bin/tsc --noEmit) && echo "sdk-ts OK"; elif command -v tsc >/dev/null 2>&1; then (cd shared/sdk-ts && tsc --noEmit) && echo "sdk-ts OK"; else echo "(tsc not installed — run 'npm install' in shared/sdk-ts; skip sdk-ts)"; fi
 
 dev: ensure-secrets ## Hot-reload one service (SVC=portal) via docker-compose.dev.yml
 	$(COMPOSE) --profile app -f docker-compose.yml -f docker-compose.dev.yml up $(SVC)

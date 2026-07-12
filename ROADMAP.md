@@ -18,7 +18,7 @@ Goal: runnable empty platform.
 
 ## M1 — Model-Driven Core  ⬜  (~1.5 weeks)  ⭐ foundation
 Goal: define an app purely as metadata and see it work.
-- [ ] `metadata-api`: typed CRUD over Layers 0–3 (tenants, users, apps, entities,
+- [x] `metadata-api`: typed CRUD over Layers 0–3 (tenants, users, apps, entities,
       fields, relationships, views, menus)
 - [ ] `ddl-engine`: diff metadata → idempotent SQL migrations → apply to Tenant DB
 - [ ] `data-api`: generic CRUD over any entity (validation, refs, filters, RLS stub)

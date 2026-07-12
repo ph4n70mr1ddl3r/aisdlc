@@ -74,7 +74,7 @@ across departments.
 
 | Persona | Dept | Owns | Tools (capability-scoped) |
 |---|---|---|---|
-| **CTO / Portfolio** | Product | Prioritization, resourcing, trade-offs | readRequests, setPriority, assignBudget |
+| **CTO / Portfolio** | Office of the CTO | Prioritization, resourcing, trade-offs | readRequests, setPriority, assignBudget |
 | **Product Manager** | Product | Scope, acceptance criteria, roadmap | readRequest, writeSpec, askHuman, searchDocs |
 | **Business Analyst** | Product | Requirements, process maps | readRequest, writeSpec, searchDocs, askHuman |
 | **UX/Service Designer** | Product | Flows, view layouts, menus | readSpec, writeView, writeMenu, drawDiagram |
@@ -83,7 +83,7 @@ across departments.
 | **Backend Engineer** | Engineering | Logic, APIs, integrations (Track B) | gitClone, editFiles, runShell, openPR |
 | **Frontend Engineer** | Engineering | Custom widgets (Track B) | gitClone, editFiles, openPR |
 | **Metadata Engineer** | Engineering | Authors entities/fields/views/rules (Track A) | writeEntity, writeField, writeView, writeRule, requestMigration |
-| **Data Engineer** | Data | Pipelines, migrations, RAG ingest | runSQL, writePipeline, embedDocs |
+| **Data Engineer** | Engineering | Pipelines, migrations, RAG ingest | runSQL, writePipeline, embedDocs |
 | **Platform Engineer** | Engineering | Core service changes (Track B) | gitClone, editFiles, runShell, openPR |
 | **Test Engineer (SDET)** | QA | Tests, coverage, UAT scripts | writeTests, runTests, reportCoverage |
 | **Release Manager** | QA | Build, env promotion, change records | buildImage, deployTo, createChange |

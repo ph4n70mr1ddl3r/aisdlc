@@ -148,7 +148,7 @@ without code. See PERSONAS.md for the full persona library.
 
 | Table | Key columns | Notes |
 |---|---|---|
-| `departments` | id, parent_id, name, mission | Org tree: Product, Engineering, QA, DevOps, Security, Support, Data, PMO, Governance |
+| `departments` | id, parent_id, name, mission | Org tree (see PERSONAS.md §2): Office of the CTO → Product (PMO), Engineering, Quality (QA), Reliability (DevOps/SRE + Security), Service Desk (Support), Governance |
 | `personas` | id, name, department_id, system_prompt, toolset[], model_pref(default deepseek-v4-flash), kpis(json), cost_budget, can_wear | The "hats" (PM, Architect, BackendDev…). All default to DeepSeek V4 Flash |
 | `agents` | id, name, status(idle/busy), current_persona_id, capacity, tenant_id | Generic workers in the pool |
 | `assignments` | agent_id, persona_id, task_id, started_at | Who's wearing what, when |

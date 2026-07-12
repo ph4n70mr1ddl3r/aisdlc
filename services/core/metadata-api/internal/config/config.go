@@ -32,7 +32,7 @@ func envOr(k, d string) string {
 	return d
 }
 
-// helper kept for future numeric toggles (e.g. DEBUG).
+// helper kept for future boolean toggles (e.g. DEBUG).
 func envBool(k string, d bool) bool {
 	if v := os.Getenv(k); v != "" {
 		b, err := strconv.ParseBool(v)

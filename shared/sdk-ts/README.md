@@ -29,4 +29,4 @@ bus.publish(
 Stable: `Envelope`, `validateEnvelope`, `newEnvelope`, `Bus`, `Handler`,
 `idempotent`, `MemoryBus`, `MemoryStore`. Pending (M1): a NATS JetStream `Bus`
 and OpenTelemetry trace propagation. Build/typecheck with `npm install && npm
-run build` (needs `typescript`).
+run build` (`typescript` is a devDependency; settings in `tsconfig.json`).

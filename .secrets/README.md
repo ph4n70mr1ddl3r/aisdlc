@@ -28,8 +28,8 @@ Not until **M3** (first personas / self-build). The infrastructure and the stub
 services (`make up`) run fine without it.
 
 ### Production
-In production, fetch the key from **Vault** (the `secrets` service) rather than
-a file on disk.
+In production, fetch the key from **Vault** (the `vault` service in
+`docker-compose.yml`) rather than a file on disk.
 
 ### If a key leaks
 Revoke it immediately at <https://platform.deepseek.com>, generate a new one,

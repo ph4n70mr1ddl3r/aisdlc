@@ -204,7 +204,8 @@ aisdlc/
 │   ├── core/        # metadata-api, data-api, ddl-engine, workflow-engine,
 │   │                # rules-engine, permissions-engine, ui-registry
 │   ├── platform/    # gateway, identity, portal, notifications, orchestrator,
-│   │                # llm-gateway, knowledge, vcs, sandbox, secrets, audit
+│   │                # llm-gateway, knowledge, vcs, sandbox, audit
+│   │                # (secrets = Vault infra, not a platform service)
 │   ├── workforce/   # agent-runtime, workforce-api
 │   └── widgets/     # custom UI widgets beyond the generic renderer (Track B)
 ├── personas/        # versioned persona prompts + tool sets + KPIs (seed data)

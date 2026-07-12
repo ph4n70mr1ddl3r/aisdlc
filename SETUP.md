@@ -36,7 +36,8 @@ make secrets-check                    # prove it's gitignored + present
 ```
 
 The key is mounted into `llm-gateway` at `/run/secrets/deepseek_api_key`.
-In production, source it from Vault (the `secrets` service) instead of a file.
+In production, source it from Vault (the `vault` service in `docker-compose.yml`)
+instead of a file.
 If a key is ever committed, rotate it immediately and rewrite git history.
 
 ## Teardown
