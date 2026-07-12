@@ -79,6 +79,7 @@ across departments.
 | **Business Analyst** | Product | Requirements, process maps | readRequest, writeSpec, searchDocs, askHuman |
 | **UX/Service Designer** | Product | Flows, view layouts, menus | readSpec, writeView, writeMenu, drawDiagram |
 | **Solution Architect** | Engineering | Tech design, entity/workflow design, risk | readSpec, readCode(RAG), writeDesign, writeEntity, writeWorkflow |
+| **Reviewer** | Engineering | Independent review of drafts (weak-model safety) | readSpec, readCode, readMetadata, runChecks, submitReview |
 | **Backend Engineer** | Engineering | Logic, APIs, integrations (Track B) | gitClone, editFiles, runShell, openPR |
 | **Frontend Engineer** | Engineering | Custom widgets (Track B) | gitClone, editFiles, openPR |
 | **Metadata Engineer** | Engineering | Authors entities/fields/views/rules (Track A) | writeEntity, writeField, writeView, writeRule, requestMigration |
@@ -114,7 +115,7 @@ Example — `feature` request:
 | Build (Track A) | Metadata Engineer | Solution Architect | Backend, Frontend | — |
 | Build (Track B) | Backend/Frontend Engineer | Solution Architect | Platform | — |
 | Test | Test Engineer | Release Manager | — | — |
-| Review/Approve | Security Analyst | Solution Architect | Compliance | requester |
+| Review/Approve | Reviewer | Solution Architect | Security, Compliance | requester |
 | Deploy | Release Manager | DevOps | SRE | requester |
 | Support | L2 Support | SRE | — | requester |
 
@@ -130,12 +131,14 @@ When an agent picks up a task, `agent-runtime` receives:
 { "task_id": 1234, "persona_id": "solution_architect",
   "context": { "request_id": 42, "spec": {...}, "rag_hits": [...] },
   "tools": ["readSpec","readCode","writeDesign","writeEntity","writeWorkflow"],
-  "model": "claude-3-5-sonnet", "budget": { "tokens": 200000, "usd": 5, "minutes": 20 },
+  "model": "deepseek-v4-flash", "budget": { "tokens": 200000, "usd": 5, "minutes": 20 },
   "kpis": { "criteria_coverage": 1.0, "risk_notes_present": true } }
 ```
-It runs the ReAct loop with **only** those tools, logs to `agent_runs`, and
-emits `task.finished` with artifacts. KPIs become acceptance checks; failing
-them loops the task back.
+It runs the ReAct loop with **only** those tools on **DeepSeek V4 Flash**,
+self-checks against its KPIs, then logs to `agent_runs` and emits
+`task.finished` with artifacts. KPIs become acceptance checks; failing them
+loops the task back. Nothing the model produces is trusted until an
+independent Reviewer persona signs off (see §8).
 
 ---
 
@@ -158,3 +161,22 @@ Personas flag for humans at gates (default on, risk-tunable):
 spec sign-off, design review, change approval (ITIL), UAT, prod deploy, and any
 action touching **secrets/prod-data/external systems**. Approvals are records
 in metadata-defined entities, surfaced in the portal and via notifications.
+
+---
+
+## 8. Weak-model safety — the Reviewer hat
+
+Everything runs on **DeepSeek V4 Flash** (cheap and fast, not frontier). So every
+deliverable is treated as an **untrusted draft** until verified:
+
+- **Self-check** — the authoring persona re-runs its own KPIs before finishing.
+- **Independent review** — a *different* persona wears the **Reviewer** hat and
+  returns `APPROVE` or `REJECT-with-notes`, without seeing the author's chain of
+  thought. Track A → Reviewer/Architect; Track B → SDET + Security Analyst.
+- **Reject → refine** — a rejection reopens the task with the reviewer's notes as
+  context (capped by the task budget, then human escalation).
+- **Objective + human gates** still apply on top — sandbox tests, ddl-engine
+  validation, permissions checks, and the §7 human sign-offs.
+
+Mechanism details: [ARCHITECTURE.md §11](./ARCHITECTURE.md). Each pass is
+recorded in `reviews` + `agent_runs.verify_status`.

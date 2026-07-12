@@ -40,10 +40,12 @@ Goal: stakeholders sign up, file requests, orchestrator routes them.
 
 ## M3 — First personas + self-build  ⬜  (~1.5 weeks)  ⭐ magic moment
 Goal: AI delivers a new app end-to-end as metadata.
-- [ ] `llm-gateway` (LiteLLM) with one provider, cost metering
+- [ ] `llm-gateway` (LiteLLM) on **DeepSeek V4 Flash**: structured outputs, retry-on-parse-fail, cost metering
+- [ ] Weak-model safety: self-check step + independent **Reviewer** persona + reject→refine loop
 - [ ] `workforce-api` + `agent-runtime` pool + persona injection
 - [ ] Seed personas: L1 Support, Product Manager, Business Analyst,
-      Solution Architect, Metadata Engineer, Test Engineer, Release Manager
+      Solution Architect, Metadata Engineer, Test Engineer, Release Manager,
+      Reviewer
 - [ ] `knowledge` RAG seeded over the metadata dictionary
 - [ ] Orchestrator wires intake → requirements → design → author metadata →
       validate → publish (with spec + publish approval gates)

@@ -242,8 +242,8 @@ services:
       <<: *otel-env
       OTEL_SERVICE_NAME: llm-gateway
       REDIS_URL: redis://redis:6379
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-deepseek-v4-flash}"
 
   knowledge:
     <<: *restart

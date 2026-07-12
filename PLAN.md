@@ -23,7 +23,7 @@ that grows itself.**
 
 ---
 
-## 2. The four pillars
+## 2. The five pillars
 
 | Pillar | What it means | Where it lives |
 |---|---|---|
@@ -31,6 +31,7 @@ that grows itself.**
 | **P2 Self-Building Platform** | New capability = new metadata. Agents author metadata → publish → it's live. Platform extends itself without redeploys. | `LIFECYCLE.md` §4 |
 | **P3 AI Workforce (multi-hat)** | A pool of generic agent workers; each task assigns a *persona* (hat): prompt + tools + KPIs. Org chart is metadata. | `PERSONAS.md` |
 | **P4 Full IT Department** | Not just dev. Covers PMO, Engineering, QA, DevOps, Security, Support, Data, Governance — every function tracked & served. | `LIFECYCLE.md`, `PERSONAS.md` |
+| **P5 Verify-Review-Gate** | The workforce runs on one small/cheap model (**DeepSeek V4 Flash**). Correctness comes from process — schema-validated outputs, self-checks, independent reviewer personas, mandatory human gates — never from trusting a single model output. | `ARCHITECTURE.md` §11, `PERSONAS.md` §8 |
 
 ---
 
@@ -98,7 +99,7 @@ Two **delivery tracks** flow out of the workforce:
 | `portal` | **Generic UI renderer** (reads metadata → React screens). Pre-seeded system apps: Admin, Users, Support, PMO, Developer Console |
 | `notifications` | In-app notifications (portal bell) |
 | `orchestrator` | Workboard; routes requests → projects → tasks → personas (Temporal-backed from M2; NATS/DB-driven bootstrap) |
-| `llm-gateway` | Provider abstraction (LiteLLM), quotas, cost metering |
+| `llm-gateway` | DeepSeek V4 Flash via LiteLLM — structured outputs, retries, quotas, cost metering |
 | `knowledge` | RAG over metadata + code + docs (Qdrant) |
 | `vcs` | Git repo, branch, PR mgmt (Track B) |
 | `sandbox` | Ephemeral Docker dev envs (Track B) |
@@ -182,7 +183,7 @@ Requests, Projects, Incidents are themselves apps the platform ships to itself.
 | Metadata DB | PostgreSQL (the dictionary) |
 | Tenant data DB | PostgreSQL (dynamically-created tables per entity, + JSONB overflow) |
 | RAG | Qdrant + LangChain |
-| LLM abstraction | LiteLLM |
+| LLM | DeepSeek V4 Flash (via LiteLLM) |
 | Cache/queue | Redis |
 | Sandbox | Docker-in-Docker (Track B) |
 | Secrets | Vault |

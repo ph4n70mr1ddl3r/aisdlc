@@ -128,7 +128,7 @@ without code. See PERSONAS.md for the full persona library.
 | Table | Key columns | Notes |
 |---|---|---|
 | `departments` | id, parent_id, name, mission | Org tree: Product, Engineering, QA, DevOps, Security, Support, Data, PMO, Governance |
-| `personas` | id, name, department_id, system_prompt, toolset[], model_pref, kpis(json), cost_budget, can_wear | The "hats" (PM, Architect, BackendDev…) |
+| `personas` | id, name, department_id, system_prompt, toolset[], model_pref(default deepseek-v4-flash), kpis(json), cost_budget, can_wear | The "hats" (PM, Architect, BackendDev…). All default to DeepSeek V4 Flash |
 | `agents` | id, name, status(idle/busy), current_persona_id, capacity, tenant_id | Generic workers in the pool |
 | `assignments` | agent_id, persona_id, task_id, started_at | Who's wearing what, when |
 | `raci_templates` | request_type, role/persona → R/A/C/I | Auto-staffing of projects |
@@ -171,7 +171,8 @@ These are themselves metadata-defined entities, seeded as system apps:
 | Table | Key columns | Notes |
 |---|---|---|
 | `audit_log` | id, actor(user/agent/persona), action, target_ref, before, after, ts, trace_id | Append-only, hashed |
-| `agent_runs` | id, task_id, agent_id, persona_id, status, tokens_in/out, cost_usd, duration, trace_id | |
+| `agent_runs` | id, task_id, agent_id, persona_id, status, tokens_in/out, cost_usd, duration, trace_id, verify_status, retries | verify_status = self_check / reviewed |
+| `reviews` | id, run_id, reviewer_persona_id, verdict(approve/reject), notes, ts | Independent reviewer pass (weak-model safety) |
 | `cost_ledger` | id, tenant_id, project_id, persona_id, tokens, usd, ts | Per-tenant budgeting |
 | `metrics` | id, ref, name, value, ts | Usage telemetry |
 
