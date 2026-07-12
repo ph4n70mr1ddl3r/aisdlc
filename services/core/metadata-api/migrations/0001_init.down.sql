@@ -1,0 +1,20 @@
+-- 0001_init.down.sql — reverse of 0001_init.up.sql
+BEGIN;
+
+DROP TABLE IF EXISTS menus;
+DROP TABLE IF EXISTS views;
+DROP TABLE IF EXISTS validations;
+DROP TABLE IF EXISTS indexes;
+DROP TABLE IF EXISTS relationships;
+DROP TABLE IF EXISTS fields;
+DROP TABLE IF EXISTS entities;
+DROP TABLE IF EXISTS app_dependencies;
+DROP TABLE IF EXISTS modules;
+DROP TABLE IF EXISTS applications;
+DROP TABLE IF EXISTS role_assignments;
+DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS tenants;
+
+COMMIT;
