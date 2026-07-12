@@ -97,14 +97,17 @@ Two **delivery tracks** flow out of the workforce:
 | `identity` | Users, tenants, roles, sessions, OAuth |
 | `portal` | **Generic UI renderer** (reads metadata → React screens). Pre-seeded system apps: Admin, Users, Support, PMO, Developer Console |
 | `notifications` | Email/in-app/Slack/webhooks |
-| `orchestrator` | Temporal-based workboard; routes requests → projects → tasks → personas |
+| `orchestrator` | Workboard; routes requests → projects → tasks → personas (Temporal-backed from M2; NATS/DB-driven bootstrap) |
 | `llm-gateway` | Provider abstraction (LiteLLM), quotas, cost metering |
 | `knowledge` | RAG over metadata + code + docs (Qdrant) |
 | `vcs` | Git repo, branch, PR mgmt (Track B) |
 | `sandbox` | Ephemeral Docker dev envs (Track B) |
-| `secrets` | Vault wrapper |
-| `observability` | OTel collector + Grafana/Loki/Tempo/Prom |
 | `audit` | Append-only audit log of every privileged action |
+
+> ℹ️ **Secrets** (HashiCorp Vault) and **observability** (OTel Collector +
+> Grafana/Loki/Tempo/Prometheus) are **infrastructure**, not app services —
+> see section 1 of `docker-compose.yml`. That makes platform = **10** app
+> services, total = **19** (7 core + 10 platform + 2 workforce).
 
 ### 4.3 AI workforce
 | Service | Role |
@@ -174,7 +177,7 @@ Requests, Projects, Incidents are themselves apps the platform ships to itself.
 | Portal (renderer) | Next.js + React + Tailwind; a **schema-driven** form/list/detail engine |
 | Core/platform services | Go (gin) |
 | Workflow/rules/agent/LLM services | Python (FastAPI) |
-| Orchestration | Temporal.io |
+| Orchestration | Temporal.io (from M2; NATS JetStream bootstrap) |
 | Event bus | NATS JetStream |
 | Metadata DB | PostgreSQL (the dictionary) |
 | Tenant data DB | PostgreSQL (dynamically-created tables per entity, + JSONB overflow) |

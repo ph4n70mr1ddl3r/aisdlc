@@ -32,6 +32,7 @@ Goal: stakeholders sign up, file requests, orchestrator routes them.
 - [ ] `identity`: signup/login (JWT), tenants, roles, email verify (mailhog)
 - [ ] `gateway`: Traefik routing + JWT forwarding
 - [ ] Seed **Support** + **PMO** apps (Request, Project, Task) as metadata
+- [ ] Add `temporal` service to infra (persistence on Postgres); wire orchestrator
 - [ ] `orchestrator`: Temporal skeleton; `request.created` → create project/tasks
 - [ ] `notifications`: in-app + email
 - [ ] Workboard view in portal (Track A!)

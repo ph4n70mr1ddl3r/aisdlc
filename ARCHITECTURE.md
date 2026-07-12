@@ -97,7 +97,8 @@ emit task.finished { artifacts, tokens, cost, kpi_results }
 
 ## 5. Orchestrator / workboard
 
-Built on **Temporal** for durable workflows:
+Built on **Temporal** for durable workflows (Temporal lands in **M2**; the
+M0–M1 bootstrap drives orchestration via NATS JetStream + the metadata DB):
 - Subscribes to `request.created`; loads the `raci_template` for its type.
 - Creates `project`/`stories`/`tasks`; assigns personas to free agents.
 - Drives each task through its workflow states; pauses on human gates
