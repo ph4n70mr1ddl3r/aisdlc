@@ -10,12 +10,34 @@ Everything runs via Docker Compose. No host installs beyond Docker + make.
 ## Quick start
 ```bash
 cp .env.example .env          # set LLM keys, secrets
-make up                       # docker compose up -d (infra + services)
+make up                       # infra only today (M0): DBs, NATS, OTel, Grafana
+# make up-app                 # also boot the (stubbed) app services
 make logs                     # tail everything
 make ps                       # service status
-open http://localhost:3000    # portal
+# open http://localhost:3000  # portal — ships in M1 (model-driven core)
 open http://localhost:3001    # grafana (admin/admin)
 ```
+
+## Secrets (API keys)
+Real secrets are **never** committed. Two layers keep them safe:
+
+1. `.gitignore` blocks `.env` and `.secrets/*` (only `*.example` + `README.md`
+   are tracked). Verify any time with `make secrets-check`.
+2. The DeepSeek API key is a Docker Compose **secret** (file-based), so it is
+   **not** an env var and never appears in `docker inspect` or
+   `docker compose config`.
+
+Add the DeepSeek key (needed at **M3+** only; infra/stubs run fine without it):
+
+```bash
+cp .secrets/deepseek_api_key.example .secrets/deepseek_api_key
+$EDITOR .secrets/deepseek_api_key     # paste your sk-... key
+make secrets-check                    # prove it's gitignored + present
+```
+
+The key is mounted into `llm-gateway` at `/run/secrets/deepseek_api_key`.
+In production, source it from Vault (the `secrets` service) instead of a file.
+If a key is ever committed, rotate it immediately and rewrite git history.
 
 ## Teardown
 ```bash
@@ -24,15 +46,18 @@ make nuke                     # stop + delete volumes (⚠️ wipes data)
 ```
 
 ## Per-service dev loop
-Each service has hot reload via `docker-compose.dev.yml`:
+Each service has hot reload via `docker-compose.dev.yml` (overrides apply once
+real source lands under `services/`):
 ```bash
 make dev SVC=portal           # portal with file watch + source mount
 ```
 
 ## Running a single agent locally
+The worker pool + personas land in **M3**. Once they exist you can drive one
+task by hand:
 ```bash
-docker compose run --rm agent-requirements \
-    python -m agent.run --ticket 42 --dry-run
+docker compose --profile app run --rm agent-runtime \
+    python -m agent.run --task 42 --dry-run
 ```
 
 ## Useful endpoints (dev defaults)

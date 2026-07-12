@@ -1,0 +1,24 @@
+# Development overrides — hot reload / source mounts.
+# Used by:  make dev SVC=<service>
+# Merged on top of docker-compose.yml. These take effect once real source
+# lives under services/ (until then the services run the M0 stubs).
+
+services:
+
+  # Example: once services/platform/portal has a real Next.js app, uncomment.
+  # portal:
+  #   environment:
+  #     NODE_ENV: development
+  #     WATCHPACK_POLLING: "true"
+  #   volumes:
+  #     - ./services/platform/portal:/app
+  #   command: npm run dev
+
+  # Example: once services/workforce/agent-runtime has real source.
+  # agent-runtime:
+  #   environment:
+  #     PYTHONDONTWRITEBYTECODE: "1"
+  #     PYTHONUNBUFFERED: "1"
+  #   volumes:
+  #     - ./services/workforce/agent-runtime:/app
+  #   command: python -m uvicorn agent.run:app --reload --host 0.0.0.0 --port 8000

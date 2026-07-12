@@ -52,11 +52,13 @@ services:
     image: nats:2.10-alpine
     command: ["-js", "-m", "8222"]
     ports: [ "4222:4222", "8222:8222" ]
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"], interval: 10s, timeout: 3s, retries: 10 }
 
   redis:
     <<: *restart
     image: redis:7-alpine
     ports: [ "6379:6379" ]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 3s, retries: 10 }
 
   qdrant:
     <<: *restart
@@ -72,6 +74,7 @@ services:
       VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_ROOT_TOKEN:-root}"
       VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
     ports: [ "8200:8200" ]
+    healthcheck: { test: ["CMD", "vault", "status"], interval: 10s, timeout: 5s, start_period: 5s, retries: 10 }
 
   registry:
     <<: *restart
@@ -120,6 +123,7 @@ services:
 
   metadata-api:
     <<: *restart
+    profiles: ["app"]
     build: ./services/core/metadata-api
     environment:
       <<: *otel-env
@@ -130,6 +134,7 @@ services:
 
   data-api:
     <<: *restart
+    profiles: ["app"]
     build: ./services/core/data-api
     environment:
       <<: *otel-env
@@ -142,6 +147,7 @@ services:
 
   ddl-engine:
     <<: *restart
+    profiles: ["app"]
     build: ./services/core/ddl-engine
     environment:
       <<: *otel-env
@@ -153,6 +159,7 @@ services:
 
   workflow-engine:
     <<: *restart
+    profiles: ["app"]
     build: ./services/core/workflow-engine
     environment:
       <<: *otel-env
@@ -162,6 +169,7 @@ services:
 
   rules-engine:
     <<: *restart
+    profiles: ["app"]
     build: ./services/core/rules-engine
     environment:
       <<: *otel-env
@@ -171,6 +179,7 @@ services:
 
   permissions-engine:
     <<: *restart
+    profiles: ["app"]
     build: ./services/core/permissions-engine
     environment:
       <<: *otel-env
@@ -179,6 +188,7 @@ services:
 
   ui-registry:
     <<: *restart
+    profiles: ["app"]
     build: ./services/core/ui-registry
     environment:
       <<: *otel-env
@@ -189,6 +199,7 @@ services:
 
   gateway:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/gateway
     environment: { <<: *otel-env, OTEL_SERVICE_NAME: gateway }
     ports: [ "8080:8080" ]
@@ -196,6 +207,7 @@ services:
 
   identity:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/identity
     environment:
       <<: *otel-env
@@ -207,6 +219,7 @@ services:
 
   portal:                        # generic UI renderer (reads metadata via ui-registry)
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/portal
     environment:
       <<: *otel-env
@@ -218,6 +231,7 @@ services:
 
   orchestrator:                  # workboard; routes requests→personas (Temporal lands in M2)
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/orchestrator
     environment:
       <<: *otel-env
@@ -228,6 +242,7 @@ services:
 
   notifications:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/notifications
     environment:
       <<: *otel-env
@@ -237,16 +252,19 @@ services:
 
   llm-gateway:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/llm-gateway
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: llm-gateway
       REDIS_URL: redis://redis:6379
-      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
       DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-deepseek-v4-flash}"
+    secrets:
+      - deepseek_api_key
 
   knowledge:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/knowledge
     environment:
       <<: *otel-env
@@ -256,6 +274,7 @@ services:
 
   vcs:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/vcs
     volumes: [ "repos:/repos", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
     environment:
@@ -265,6 +284,7 @@ services:
 
   sandbox:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/sandbox
     volumes: [ "/var/run/docker.sock:/var/run/docker.sock:ro", "sandbox-cache:/cache" ]
     environment:
@@ -274,6 +294,7 @@ services:
 
   audit:
     <<: *restart
+    profiles: ["app"]
     build: ./services/platform/audit
     environment:
       <<: *otel-env
@@ -287,6 +308,7 @@ services:
 
   workforce-api:                 # manages agents/personas/departments/cost ledger
     <<: *restart
+    profiles: ["app"]
     build: ./services/workforce/workforce-api
     environment:
       <<: *otel-env
@@ -297,8 +319,9 @@ services:
 
   agent-runtime:                 # the ReAct worker pool (assign personas per task)
     <<: *restart
+    profiles: ["app"]
     build: ./services/workforce/agent-runtime
-    deploy: { replicas: 3 }
+    deploy: { replicas: 3 }       # NOTE: ignored by plain `docker compose up`; use --scale or Swarm
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: agent-runtime
@@ -309,7 +332,13 @@ services:
       VCS_URL: http://vcs:8000
       KNOWLEDGE_URL: http://knowledge:8000
       WORKFORCE_API: http://workforce-api:8000
-    depends_on: [ llm-gateway, workforce-api ]
+    depends_on:
+      llm-gateway: { condition: service_healthy }
+      workforce-api: { condition: service_healthy }
+
+secrets:
+  deepseek_api_key:
+    file: ./.secrets/deepseek_api_key
 
 volumes:
   pgmeta: {}

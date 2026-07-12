@@ -52,11 +52,12 @@ Stakeholder ──"we need an Asset app"──► Request
 - **Self-extending**: agents author metadata → publish → live. The platform
   grows its own capabilities.
 
-## Quick start (once M0 lands)
+## Quick start
 ```bash
 cp .env.example .env
-docker compose up -d
-open http://localhost:3000     # portal (renders from metadata)
+make up                        # infra today (M0): DBs, NATS, OTel, Grafana
+# make up-app                   # also boot the (stubbed) app services
+# open http://localhost:3000   # portal — ships in M1 (model-driven core)
 open http://localhost:3001     # grafana
 ```
 

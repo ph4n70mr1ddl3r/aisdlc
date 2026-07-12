@@ -1,0 +1,41 @@
+# OpenTelemetry Collector — minimal pipeline.
+# Receives OTLP (gRPC :4317 / HTTP :4318) from all services and fans out to:
+#   traces  → Tempo (OTLP gRPC)
+#   metrics → Prometheus (exposed as a scrape endpoint on :8889)
+#   logs    → Loki (native OTLP HTTP)
+# Docs: ARCHITECTURE.md §9. The app services push here via OTEL_EXPORTER_OTLP_ENDPOINT.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      exporters: [otlphttp/loki]

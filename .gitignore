@@ -1,0 +1,42 @@
+# ─────────────────────────────────────────────────────────────
+# Secrets & local environment — NEVER commit these.
+# Run `make secrets-check` to prove your key is ignored.
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# Real secrets live as files here; only *.example + README are tracked.
+.secrets/*
+!.secrets/*.example
+!.secrets/README.md
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── Node ──
+node_modules/
+.next/
+.npm/
+dist/
+build/
+
+# ── Go ──
+coverage.out
+*.test
+
+# ── Editors / OS ──
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# ── Runtime / logs ──
+*.log
+tmp/

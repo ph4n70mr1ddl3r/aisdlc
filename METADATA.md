@@ -51,13 +51,23 @@ Principles:
 enum, multiselect, ref, multiref, money, email, url, phone, json, file, image,
 computed, formula, agentref, userref, richdoc`.
 
+**Computed vs formula:** `formula` is evaluated by `data-api` on read from the
+declared expression; `computed` is re-derived on write. Both run in the
+application layer (never the DB) so they stay tenant-aware and permission-checked.
+
 **Field config** (JSON) holds: `required, unique, default, validation_expr,
 ui_widget, ui_options, placeholder, pii, encrypted, indexed, ref_entity,
 ref_display_field, enum_options, formula_lang`.
 
 **Physical storage:** `ddl-engine` creates one real table per entity (typed
 columns) + a `meta jsonb` overflow column for sparse/extra fields. Refs become
-real FKs. This gives speed + query power while staying flexible.
+real FKs (within the tenant DB). This gives speed + query power while staying
+flexible.
+
+**Cross-database references:** `userref`/`agentref` point into the **metadata
+DB**, which is a separate logical database from the tenant data DB, so they
+cannot be physical FKs. They are **validated soft references** — resolved and
+authorization-checked by `data-api` + `permissions-engine` at read/write time.
 
 ---
 
@@ -73,6 +83,12 @@ real FKs. This gives speed + query power while staying flexible.
 | `dashboards` | id, app_id, name, widgets[] | widgets ref views/metrics |
 | `actions` | id, entity_id, name, scope(record/bulk/global), kind(workflow/api/script/ui), target_id, confirm | Buttons on views |
 | `reports` | id, entity_id, name, query, chart_type, schedule | |
+
+**Action kinds:** `workflow` fires a transition; `api` calls an HTTP endpoint
+recorded in metadata; `ui` is client-side navigation/modal. `script` is **not**
+arbitrary runtime code — it names a vetted, allow-listed routine registered via
+Track B and runs sandboxed; it cannot be created by a Track-A metadata edit
+alone. Anything beyond the safe DSL (Layer 5) is Track B.
 
 The portal is a **schema-driven renderer**: give it a `view` row, it renders a
 screen. Zero hardcoded business screens. Custom visuals beyond the renderer's
@@ -90,6 +106,9 @@ vocabulary fall to Track B (`widgets/`).
 | `slas` | id, state_id, warn_minutes, breach_minutes, escalate_to | |
 | `timers` | id, workflow_id, cron_or_delay, action | |
 
+**Timers** (`cron_or_delay`) are owned and fired by `workflow-engine`, which
+runs the scheduler for every published workflow.
+
 `actions` are declarative: `{type: call_persona|set_field|send_notif|run_rule|create_record|call_api, ...}`.
 The `workflow-engine` interprets these; no code per workflow.
 
@@ -103,6 +122,8 @@ The `workflow-engine` interprets these; no code per workflow.
 | `rule_logs` | id, rule_id, record_ref, result, ts | For debugging |
 
 Expressions use a safe DSL (e.g. CEL or JSONLogic) — never raw code.
+**Cron/event triggers** are dispatched by `rules-engine` (cron scheduler) and
+the NATS bus (event triggers); there is no per-rule daemon.
 
 ---
 
