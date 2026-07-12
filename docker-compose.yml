@@ -1,0 +1,224 @@
+# Agentic SDLC Platform — full stack
+# Bring up everything with:  docker compose up -d
+# See PLAN.md, ARCHITECTURE.md, ROADMAP.md, AGENTS.md for the design.
+#
+# Sections:
+#   1. Infrastructure (postgres, nats, redis, qdrant, vault, registry, otel)
+#   2. Platform services (gateway, identity, backlog, portal, orchestrator, ...)
+#   3. Agent services (one per SDLC phase)
+#
+# NOTE: service implementations land in milestones M0–M4 (see ROADMAP.md).
+# Infra services below are real and boot today; app services are stubbed
+# with build contexts that will be added per milestone.
+
+name: aisdlc
+
+x-restart: &restart { restart: unless-stopped }
+x-otel-env: &otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_SERVICE_NAMESPACE: aisdlc
+
+# ───────────────────────── 1. INFRASTRUCTURE ─────────────────────────
+services:
+
+  postgres:
+    <<: *restart
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: aisdlc
+    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    ports: [ "5432:5432" ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    <<: *restart
+    image: nats:2.10-alpine
+    command: ["-js", "-m", "8222"]          # JetStream + monitor
+    ports: [ "4222:4222", "8222:8222" ]
+
+  redis:
+    <<: *restart
+    image: redis:7-alpine
+    ports: [ "6379:6379" ]
+
+  qdrant:
+    <<: *restart
+    image: qdrant/qdrant:latest
+    ports: [ "6333:6333", "6334:6334" ]
+    volumes: [ "qdrant:/qdrant/storage" ]
+
+  vault:
+    <<: *restart
+    image: hashicorp/vault:1.15
+    cap_add: [ "IPC_LOCK" ]
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports: [ "8200:8200" ]
+
+  registry:
+    <<: *restart
+    image: registry:2
+    ports: [ "5000:5000" ]
+    volumes: [ "registry:/var/lib/registry" ]
+
+  mailhog:
+    <<: *restart
+    image: mailhog/mailhog:latest
+    ports: [ "1025:1025", "8025:8025" ]
+
+  # ── Observability ──
+  otel-collector:
+    <<: *restart
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: [ "./infra/otel/collector.yaml:/etc/otelcol/config.yaml:ro"]
+    depends_on: [ tempo, loki ]
+
+  tempo:
+    <<: *restart
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes: ["./infra/otel/tempo.yaml:/etc/tempo.yaml:ro", "tempo:/var/tempo"]
+
+  loki:
+    <<: *restart
+    image: grafana/loki:latest
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes: ["loki:/loki"]
+
+  prometheus:
+    <<: *restart
+    image: prom/prometheus:latest
+    volumes: ["./infra/otel/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: [ "9090:9090" ]
+
+  grafana:
+    <<: *restart
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    ports: [ "3001:3000" ]
+    volumes: ["grafana:/var/lib/grafana"]
+    depends_on: [ prometheus, loki, tempo ]
+
+# ───────────────────────── 2. PLATFORM SERVICES ─────────────────────────
+# (Implemented in M0–M4. Build contexts point to services/<name>.)
+
+  gateway:
+    <<: [*restart, *otel-env]
+    build: ./services/gateway
+    environment: { OTEL_SERVICE_NAME: gateway }
+    ports: [ "8080:8080" ]
+    depends_on: [ identity ]
+
+  identity:
+    <<: [*restart, *otel-env]
+    build: ./services/identity
+    environment:
+      OTEL_SERVICE_NAME: identity
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
+      NATS_URL: nats://nats:4222
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:-dev-secret}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  backlog:
+    <<: [*restart, *otel-env]
+    build: ./services/backlog
+    environment:
+      OTEL_SERVICE_NAME: backlog
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
+      NATS_URL: nats://nats:4222
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  portal:
+    <<: [*restart, *otel-env]
+    build: ./services/portal
+    environment:
+      OTEL_SERVICE_NAME: portal
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    ports: [ "3000:3000" ]
+    depends_on: [ gateway ]
+
+  orchestrator:
+    <<: [*restart, *otel-env]
+    build: ./services/orchestrator
+    environment:
+      OTEL_SERVICE_NAME: orchestrator
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
+      NATS_URL: nats://nats:4222
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  vcs:
+    <<: [*restart, *otel-env]
+    build: ./services/vcs
+    volumes: [ "repos:/repos", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
+    environment:
+      OTEL_SERVICE_NAME: vcs
+      NATS_URL: nats://nats:4222
+
+  llm-gateway:
+    <<: [*restart, *otel-env]
+    build: ./services/llm-gateway
+    environment:
+      OTEL_SERVICE_NAME: llm-gateway
+      REDIS_URL: redis://redis:6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+  knowledge:
+    <<: [*restart, *otel-env]
+    build: ./services/knowledge
+    environment:
+      OTEL_SERVICE_NAME: knowledge
+      QDRANT_URL: http://qdrant:6333
+      NATS_URL: nats://nats:4222
+
+  sandbox:
+    <<: [*restart, *otel-env]
+    build: ./services/sandbox
+    volumes: [ "/var/run/docker.sock:/var/run/docker.sock:ro", "sandbox-cache:/cache" ]
+    environment:
+      OTEL_SERVICE_NAME: sandbox
+      REGISTRY: registry:5000
+
+  notifications:
+    <<: [*restart, *otel-env]
+    build: ./services/notifications
+    environment:
+      OTEL_SERVICE_NAME: notifications
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/aisdlc?sslmode=disable
+      NATS_URL: nats://nats:4222
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+
+# ───────────────────────── 3. AGENT SERVICES ─────────────────────────
+# All agents share the same runtime contract; differing only in prompt + tools.
+# They are wired by the orchestrator, not by direct dependencies here.
+
+  agent-triage:        { <<: [*restart, *otel-env], build: ./services/agents/triage,        environment: { OTEL_SERVICE_NAME: agent-triage,        NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
+  agent-requirements:  { <<: [*restart, *otel-env], build: ./services/agents/requirements,  environment: { OTEL_SERVICE_NAME: agent-requirements,  NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
+  agent-architect:     { <<: [*restart, *otel-env], build: ./services/agents/architect,     environment: { OTEL_SERVICE_NAME: agent-architect,     NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
+  agent-developer:     { <<: [*restart, *otel-env], build: ./services/agents/developer,     environment: { OTEL_SERVICE_NAME: agent-developer,     NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, SANDBOX_URL: http://sandbox:8000 } }
+  agent-reviewer:      { <<: [*restart, *otel-env], build: ./services/agents/reviewer,      environment: { OTEL_SERVICE_NAME: agent-reviewer,      NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000 } }
+  agent-qa:            { <<: [*restart, *otel-env], build: ./services/agents/qa,            environment: { OTEL_SERVICE_NAME: agent-qa,            NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, SANDBOX_URL: http://sandbox:8000 } }
+  agent-deploy:        { <<: [*restart, *otel-env], build: ./services/agents/deploy,        environment: { OTEL_SERVICE_NAME: agent-deploy,        NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, VAULT_ADDR: http://vault:8200 } }
+  agent-monitor:       { <<: [*restart, *otel-env], build: ./services/agents/monitor,       environment: { OTEL_SERVICE_NAME: agent-monitor,       NATS_URL: nats://nats:4222, LLM_GATEWAY: http://llm-gateway:8000, PROM_URL: http://prometheus:9090 } }
+
+volumes:
+  pgdata: {}
+  qdrant: {}
+  registry: {}
+  repos: {}
+  sandbox-cache: {}
+  tempo: {}
+  loki: {}
+  grafana: {}
