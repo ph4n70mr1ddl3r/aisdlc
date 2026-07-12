@@ -44,7 +44,7 @@ Stakeholder ──"we need an Asset app"──► Request
                           SRE monitors → Support helps → new requests → (loop)
 ```
 
-- **~19 services**: model-driven core (7 engines) + platform (10) + workforce (2); plus infra (Postgres×2, NATS, Redis, Qdrant, Vault, registry, Mailhog, OTel/Grafana).
+- **~19 services**: model-driven core (7 engines) + platform (10) + workforce (2); plus infra (Postgres×2, NATS, Redis, Qdrant, Vault, registry, OTel/Grafana).
 - **Two delivery tracks**: Track A = metadata (instant, ~80% of requests);
   Track B = real code via sandbox+VCS (full SDLC, ~20%).
 - **Multi-hat agents**: a worker pool takes on personas (PM, Architect, Dev,

@@ -13,7 +13,6 @@ A request can enter through:
   change/access), title, description, attachments.
 - **Chat / NL**: "we need an asset management app" → L1 Support persona parses
   it into a structured `request`.
-- **Email-to-ticket** gateway.
 - **Auto-filed**: Monitor persona raises an incident; it spawns a bug request.
 - **API** (integrations, webhooks).
 
@@ -21,11 +20,11 @@ All become rows in `requests`. Each `request_type` has a default workflow +
 SLA + RACI template (metadata). One unified workboard.
 
 ```
-                  ┌──── NL chat ────┐
-   form ─────────►│                 │──► request (typed) ──► Orchestrator
-   email ────────►│  L1 Support     │
-   incident ─────►│  persona parses │
-   api ──────────►└─────────────────┘
+                ┌──── NL chat ────┐
+   form ───────►│                 │──► request (typed) ──► Orchestrator
+   incident ───►│  L1 Support     │
+   api ────────►│  persona parses │
+                └─────────────────┘
 ```
 
 ---
@@ -106,7 +105,7 @@ Gates are configurable per `request_type` and risk. Default gates:
 5. **Prod deploy** (release approval)
 6. **Any action** touching secrets, prod data, or external systems → human
 
-Approvals are records in metadata-defined entities; surfaced in portal + email.
+Approvals are records in metadata-defined entities; surfaced in portal + in-app notifications.
 
 ---
 

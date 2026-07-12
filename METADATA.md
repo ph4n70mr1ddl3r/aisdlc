@@ -20,7 +20,7 @@ Principles:
 | Table | Key columns | Notes |
 |---|---|---|
 | `tenants` | id, name, slug, plan | Orgs |
-| `users` | id, tenant_id, email, name, status | Platform users (stakeholders) |
+| `users` | id, tenant_id, username (unique), password_hash, name, status | Platform users (stakeholders); username/password login |
 | `sessions` | id, user_id, token, expires | |
 | `roles` | id, tenant_id, name, is_system | e.g. Admin, Stakeholder, Maintainer |
 | `role_assignments` | user_id, role_id, scope | scope = app/entity/record filter |

@@ -45,7 +45,6 @@ docker compose run --rm agent-requirements \
 | Loki | http://localhost:3100 |
 | Qdrant dashboard | http://localhost:6333/dashboard |
 | Vault UI | http://localhost:8200 |
-| Mailhog | http://localhost:8025 |
 
 ## Layout
 See [PLAN.md §8](./PLAN.md). Infra in `infra/`, services in `services/`,

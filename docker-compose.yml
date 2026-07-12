@@ -79,11 +79,6 @@ services:
     ports: [ "5000:5000" ]
     volumes: [ "registry:/var/lib/registry" ]
 
-  mailhog:
-    <<: *restart
-    image: mailhog/mailhog:latest
-    ports: [ "1025:1025", "8025:8025" ]
-
   # ── Observability ──
   otel-collector:
     <<: *restart
@@ -239,9 +234,6 @@ services:
       OTEL_SERVICE_NAME: notifications
       DATABASE_URL: *meta-db
       NATS_URL: *nats
-      SMTP_HOST: "${SMTP_HOST:-mailhog}"
-      SMTP_PORT: "${SMTP_PORT:-1025}"
-      SMTP_FROM: "${SMTP_FROM:-hello@aisdlc.local}"
 
   llm-gateway:
     <<: *restart

@@ -10,7 +10,7 @@ core** — because once that exists, the platform can start building itself.
 Goal: runnable empty platform.
 - [ ] Repo scaffold (monorepo layout, PLAN §8)
 - [ ] `docker-compose.yml` infra (postgres×2, nats, redis, qdrant, vault,
-      registry, mailhog, otel stack, grafana)
+      registry, otel stack, grafana)
 - [ ] `shared/proto` event schemas + `shared/sdk-*` skeletons
 - [ ] Base images (python/go/node) with OTel + sdk baked in
 - [ ] `make up/down/logs/test`
@@ -29,12 +29,12 @@ Goal: define an app purely as metadata and see it work.
 
 ## M2 — Identity + Requests + Workboard  ⬜  (~1 week)
 Goal: stakeholders sign up, file requests, orchestrator routes them.
-- [ ] `identity`: signup/login (JWT), tenants, roles, email verify (mailhog)
+- [ ] `identity`: username/password signup/login (JWT), tenants, roles
 - [ ] `gateway`: Traefik routing + JWT forwarding
 - [ ] Seed **Support** + **PMO** apps (Request, Project, Task) as metadata
 - [ ] Add `temporal` service to infra (persistence on Postgres); wire orchestrator
 - [ ] `orchestrator`: Temporal skeleton; `request.created` → create project/tasks
-- [ ] `notifications`: in-app + email
+- [ ] `notifications`: in-app notifications (portal bell)
 - [ ] Workboard view in portal (Track A!)
 **Demo:** Sign up → file "add timesheet app" → see routed project in workboard.
 

@@ -94,9 +94,9 @@ Two **delivery tracks** flow out of the workforce:
 | Service | Role |
 |---|---|
 | `gateway` | Edge routing, auth, rate limit |
-| `identity` | Users, tenants, roles, sessions, OAuth |
+| `identity` | Users (username/password), tenants, roles, sessions, JWT auth |
 | `portal` | **Generic UI renderer** (reads metadata → React screens). Pre-seeded system apps: Admin, Users, Support, PMO, Developer Console |
-| `notifications` | Email/in-app/Slack/webhooks |
+| `notifications` | In-app notifications (portal bell) |
 | `orchestrator` | Workboard; routes requests → projects → tasks → personas (Temporal-backed from M2; NATS/DB-driven bootstrap) |
 | `llm-gateway` | Provider abstraction (LiteLLM), quotas, cost metering |
 | `knowledge` | RAG over metadata + code + docs (Qdrant) |
