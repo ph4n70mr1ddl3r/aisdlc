@@ -37,10 +37,10 @@ func (e Envelope) Validate() error {
 	if e.Stream == "" || e.Type == "" || e.Subject == "" {
 		return errors.New("aisdlc: envelope stream/type/subject are required")
 	}
-	if e.Version != EnvelopeVersion {
-		return fmt.Errorf("aisdlc: envelope version mismatch: got %d want %d", e.Version, EnvelopeVersion)
+	if e.Version < 1 || e.Version > EnvelopeVersion {
+		return fmt.Errorf("aisdlc: envelope version mismatch: got %d want >=1 && <=%d", e.Version, EnvelopeVersion)
 	}
-	if len(e.Payload) == 0 || string(e.Payload) == "null" {
+	if len(e.Payload) == 0 || len(e.Payload) == 4 && string(e.Payload) == "null" {
 		return errors.New("aisdlc: envelope.payload is required")
 	}
 	return nil

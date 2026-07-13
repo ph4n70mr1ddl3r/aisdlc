@@ -16,7 +16,7 @@ export interface Subscription {
 }
 
 export interface Bus {
-  publish(env: Envelope): void | Promise<void>;
+  publish(env: Envelope): Promise<void>;
   subscribe(stream: string, subject: string, handler: Handler): Subscription;
 }
 
@@ -45,10 +45,10 @@ export class MemoryBus implements Bus {
   private subs: Array<{ stream: string; pattern: string; handler: Handler }> =
     [];
 
-  publish(env: Envelope): void {
+  async publish(env: Envelope): Promise<void> {
     for (const s of this.subs.slice()) {
       if (s.stream === env.stream && matchSubject(s.pattern, env.subject)) {
-        s.handler(env);
+        await s.handler(env);
       }
     }
   }

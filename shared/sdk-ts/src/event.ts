@@ -59,9 +59,8 @@ export function newEnvelope<P>(
 function randomUuid(): string {
   const g = globalThis as { crypto?: { randomUUID?: () => string } };
   if (g.crypto?.randomUUID) return g.crypto.randomUUID(); // Node 18+/browsers
-  // RFC 4122 v4 fallback (Math.random) for old runtimes.
-  return "00000000-0000-4000-8000-000000000000".replace(/[018]/g, (c) => {
-    const n = Number(c);
-    return (n ^ (Math.random() * 16)).toString(16);
+  // RFC 4122 v4 fallback for old runtimes.
+  return "10000000-1000-4000-8000-100000000000".replace(/[12]/g, (c) => {
+    return (Number(c) ^ (Math.random() * 16)).toString(16);
   });
 }

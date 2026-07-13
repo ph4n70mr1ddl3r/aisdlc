@@ -65,7 +65,7 @@ class Envelope:
                 subject=obj["subject"],
                 payload=obj["payload"],
                 id=obj["id"],
-                ts=datetime.fromisoformat(obj["ts"]),
+                ts=datetime.fromisoformat(obj["ts"].replace("Z", "+00:00")),
                 trace_id=obj.get("trace_id"),
                 version=obj.get("version", ENVELOPE_VERSION),
             )

@@ -90,7 +90,7 @@ func (s *Store) List(ctx context.Context, r *schema.Resource, q ListQuery) ([]ma
 // Get returns one row by id (and tenant_id if scoped).
 func (s *Store) Get(ctx context.Context, r *schema.Resource, id, tenantID string) (map[string]any, error) {
 	b := squirrel.Select(columnList(r)...).From(quote(r.Table)).PlaceholderFormat(squirrel.Dollar).
-		Where(squirrel.Expr(quote(r.IDColumn)+"::text = ?", id))
+		Where(squirrel.Expr(quote(r.IDColumn)+" = ?::uuid", id))
 	b = scopeTenant(b, r, tenantID)
 	sql, args, err := b.ToSql()
 	if err != nil {
@@ -177,10 +177,10 @@ func (s *Store) Update(ctx context.Context, r *schema.Resource, id string, body 
 		sets = append(sets, "updated_at = now()")
 	}
 	args = append(args, id)
-	where := fmt.Sprintf("%s::text = $%d", quote(r.IDColumn), len(args))
+	where := fmt.Sprintf("%s = $%d::uuid", quote(r.IDColumn), len(args))
 	if r.TenantScope && tenantID != "" {
 		args = append(args, tenantID)
-		where += fmt.Sprintf(" AND %s::text = $%d", quote("tenant_id"), len(args))
+		where += fmt.Sprintf(" AND %s = $%d::uuid", quote("tenant_id"), len(args))
 	}
 	sql := fmt.Sprintf("UPDATE %s SET %s WHERE %s RETURNING %s",
 		quote(r.Table), strings.Join(sets, ", "), where, strings.Join(columnList(r), ", "))
@@ -202,10 +202,10 @@ func (s *Store) Update(ctx context.Context, r *schema.Resource, id string, body 
 // Delete removes a row by id (and tenant_id if scoped).
 func (s *Store) Delete(ctx context.Context, r *schema.Resource, id, tenantID string) error {
 	args := []any{id}
-	where := fmt.Sprintf("%s::text = $1", quote(r.IDColumn))
+	where := fmt.Sprintf("%s = $1::uuid", quote(r.IDColumn))
 	if r.TenantScope && tenantID != "" {
 		args = append(args, tenantID)
-		where += fmt.Sprintf(" AND %s::text = $2", quote("tenant_id"))
+		where += fmt.Sprintf(" AND %s = $2::uuid", quote("tenant_id"))
 	}
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s", quote(r.Table), where)
 	tag, err := s.pool.Exec(ctx, sql, args...)
@@ -222,7 +222,7 @@ func (s *Store) Delete(ctx context.Context, r *schema.Resource, id, tenantID str
 
 func applyFilters(b squirrel.SelectBuilder, r *schema.Resource, q ListQuery) squirrel.SelectBuilder {
 	if r.TenantScope && q.TenantID != "" {
-		b = b.Where(squirrel.Expr(quote("tenant_id")+"::text = ?", q.TenantID))
+		b = b.Where(squirrel.Expr(quote("tenant_id")+" = ?::uuid", q.TenantID))
 	}
 	// deterministic filter order
 	keys := make([]string, 0, len(q.Filters))
@@ -248,7 +248,7 @@ func applyFilters(b squirrel.SelectBuilder, r *schema.Resource, q ListQuery) squ
 
 func scopeTenant(b squirrel.SelectBuilder, r *schema.Resource, tenantID string) squirrel.SelectBuilder {
 	if r.TenantScope && tenantID != "" {
-		return b.Where(squirrel.Expr(quote("tenant_id")+"::text = ?", tenantID))
+		return b.Where(squirrel.Expr(quote("tenant_id")+" = ?::uuid", tenantID))
 	}
 	return b
 }

@@ -53,7 +53,7 @@ var allResources = []*schema.Resource{
 		Columns: cols(
 			{Name: "tenant_id", Type: uuid0}, // injected; not settable
 			{Name: "username", Type: text, Settable: true, Required: true},
-			{Name: "password_hash", Type: text, Settable: true, Required: true},
+			{Name: "password_hash", Type: text, Required: true}, // set server-side only
 			{Name: "name", Type: text, Settable: true},
 			{Name: "status", Type: text, Settable: true},
 		),
@@ -64,7 +64,7 @@ var allResources = []*schema.Resource{
 		Columns: cols(
 			{Name: "tenant_id", Type: uuid0},
 			{Name: "name", Type: text, Settable: true, Required: true},
-			{Name: "is_system", Type: boolT, Settable: true},
+			{Name: "is_system", Type: boolT}, // system-managed only
 		),
 		Searchable: []string{"name"}, OrderBy: "created_at DESC",
 	},
