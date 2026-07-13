@@ -1,7 +1,7 @@
 "use strict";
 const http = require("http");
 // M0 stub — replaced by the real implementation in its milestone (ROADMAP.md).
-const port = 3000;
+const port = parseInt(process.env.PORT, 10) || 3000;
 const server = http.createServer((req, res) => {
   const payload = req.url === "/healthz"
     ? { status: "ok" }

@@ -1,6 +1,7 @@
 """Bus abstraction + idempotent consumer helper (ARCHITECTURE.md §6)."""
 from __future__ import annotations
 
+import threading
 from typing import Any, Callable, Protocol
 
 from .event import Envelope
@@ -21,13 +22,15 @@ class MemoryStore:
     """In-memory DedupeStore for tests/dev only (not durable)."""
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._seen: set[str] = set()
 
     def seen(self, env_id: str) -> bool:
-        if env_id in self._seen:
-            return True
-        self._seen.add(env_id)
-        return False
+        with self._lock:
+            if env_id in self._seen:
+                return True
+            self._seen.add(env_id)
+            return False
 
 
 def Idempotent(store: DedupeStore, handler: Callable[[Envelope], None]) -> Handler:

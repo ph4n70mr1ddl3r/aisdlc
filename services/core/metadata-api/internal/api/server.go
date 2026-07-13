@@ -18,7 +18,7 @@ const ctxTenant = "tenantID"
 func NewRouter(s *store.Store) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger(), resolveTenant)
+	r.Use(gin.Recovery(), gin.Logger(), resolveTenant, corsMiddleware)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -55,6 +55,18 @@ func resolveTenant(c *gin.Context) {
 	}
 	if t != "" {
 		c.Set(ctxTenant, t)
+	}
+	c.Next()
+}
+
+// corsMiddleware allows all origins (development mode). Tighten for production.
+func corsMiddleware(c *gin.Context) {
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+	c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-ID")
+	if c.Request.Method == http.MethodOptions {
+		c.AbortWithStatus(http.StatusNoContent)
+		return
 	}
 	c.Next()
 }

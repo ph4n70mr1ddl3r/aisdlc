@@ -46,6 +46,9 @@ func main() {
 		Addr:              cfg.Addr,
 		Handler:           api.NewRouter(store.New(pool)),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MB
 	}
 
 	go func() {

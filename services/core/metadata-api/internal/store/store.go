@@ -340,13 +340,12 @@ func coerce(raw any, t schema.ColType) (any, error) {
 		default:
 			return nil, fmt.Errorf("want bool, got %T", raw)
 		}
-	default: // text, uuid, ts -> string
-		switch s := raw.(type) {
-		case string:
-			return s, nil
-		default:
-			return fmt.Sprintf("%v", raw), nil
+	default: // text, uuid, ts -> string only
+		s, ok := raw.(string)
+		if !ok {
+			return nil, fmt.Errorf("want string, got %T", raw)
 		}
+		return s, nil
 	}
 }
 
