@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -69,7 +70,11 @@ func (s *Store) List(ctx context.Context, r *schema.Resource, q ListQuery) ([]ma
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	b = b.Limit(uint64(limit)).Offset(uint64(q.Offset))
+	offset := q.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	b = b.Limit(uint64(limit)).Offset(uint64(offset))
 
 	sql, args, err := b.ToSql()
 	if err != nil {
