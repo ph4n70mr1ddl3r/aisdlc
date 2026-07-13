@@ -62,7 +62,7 @@ services:
 
   qdrant:
     <<: *restart
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.10.1
     ports: [ "6333:6333", "6334:6334" ]
     volumes: [ "qdrant:/qdrant/storage" ]
 
@@ -135,7 +135,10 @@ services:
   data-api:
     <<: *restart
     profiles: ["app"]
-    build: ./services/core/data-api
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/core/data-api, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: data-api
@@ -148,7 +151,10 @@ services:
   ddl-engine:
     <<: *restart
     profiles: ["app"]
-    build: ./services/core/ddl-engine
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/core/ddl-engine, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: ddl-engine
@@ -160,7 +166,9 @@ services:
   workflow-engine:
     <<: *restart
     profiles: ["app"]
-    build: ./services/core/workflow-engine
+    build:
+      context: .
+      dockerfile: services/core/workflow-engine/Dockerfile
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: workflow-engine
@@ -170,7 +178,9 @@ services:
   rules-engine:
     <<: *restart
     profiles: ["app"]
-    build: ./services/core/rules-engine
+    build:
+      context: .
+      dockerfile: services/core/rules-engine/Dockerfile
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: rules-engine
@@ -180,7 +190,10 @@ services:
   permissions-engine:
     <<: *restart
     profiles: ["app"]
-    build: ./services/core/permissions-engine
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/core/permissions-engine, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: permissions-engine
@@ -189,7 +202,10 @@ services:
   ui-registry:
     <<: *restart
     profiles: ["app"]
-    build: ./services/core/ui-registry
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/core/ui-registry, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: ui-registry
@@ -200,7 +216,10 @@ services:
   gateway:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/gateway
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/platform/gateway, PORT: "8080" }
     environment: { <<: *otel-env, OTEL_SERVICE_NAME: gateway }
     ports: [ "8080:8080" ]
     depends_on: [ identity ]
@@ -208,7 +227,10 @@ services:
   identity:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/identity
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/platform/identity, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: identity
@@ -232,7 +254,10 @@ services:
   orchestrator:                  # workboard; routes requests→personas (Temporal lands in M2)
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/orchestrator
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/platform/orchestrator, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: orchestrator
@@ -243,7 +268,10 @@ services:
   notifications:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/notifications
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/platform/notifications, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: notifications
@@ -253,7 +281,9 @@ services:
   llm-gateway:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/llm-gateway
+    build:
+      context: .
+      dockerfile: services/platform/llm-gateway/Dockerfile
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: llm-gateway
@@ -265,7 +295,9 @@ services:
   knowledge:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/knowledge
+    build:
+      context: .
+      dockerfile: services/platform/knowledge/Dockerfile
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: knowledge
@@ -275,7 +307,10 @@ services:
   vcs:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/vcs
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/platform/vcs, PORT: "8000" }
     volumes: [ "repos:/repos", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
     environment:
       <<: *otel-env
@@ -285,7 +320,10 @@ services:
   sandbox:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/sandbox
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/platform/sandbox, PORT: "8000" }
     volumes: [ "/var/run/docker.sock:/var/run/docker.sock:ro", "sandbox-cache:/cache" ]
     environment:
       <<: *otel-env
@@ -295,7 +333,10 @@ services:
   audit:
     <<: *restart
     profiles: ["app"]
-    build: ./services/platform/audit
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/platform/audit, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: audit
@@ -309,7 +350,10 @@ services:
   workforce-api:                 # manages agents/personas/departments/cost ledger
     <<: *restart
     profiles: ["app"]
-    build: ./services/workforce/workforce-api
+    build:
+      context: .
+      dockerfile: shared/stub-go/Dockerfile
+      args: { SERVICE_DIR: services/workforce/workforce-api, PORT: "8000" }
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: workforce-api
@@ -320,7 +364,9 @@ services:
   agent-runtime:                 # the ReAct worker pool (assign personas per task)
     <<: *restart
     profiles: ["app"]
-    build: ./services/workforce/agent-runtime
+    build:
+      context: .
+      dockerfile: services/workforce/agent-runtime/Dockerfile
     deploy: { replicas: 3 }       # NOTE: ignored by plain `docker compose up`; use --scale or Swarm
     environment:
       <<: *otel-env

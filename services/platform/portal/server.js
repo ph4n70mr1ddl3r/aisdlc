@@ -10,3 +10,8 @@ const server = http.createServer((req, res) => {
   res.end(JSON.stringify(payload));
 });
 server.listen(port, () => console.log("stub listening on :" + port));
+
+// Graceful shutdown
+const shutdown = () => { console.log("stub: shutting down..."); server.close(() => process.exit(0)); };
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

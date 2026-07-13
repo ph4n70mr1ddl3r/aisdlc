@@ -53,6 +53,9 @@ type ListQuery struct {
 
 // List returns rows (JSON-ready maps) and the total count (pre-pagination).
 func (s *Store) List(ctx context.Context, r *schema.Resource, q ListQuery) ([]map[string]any, int64, error) {
+	if r.TenantScope && q.TenantID == "" {
+		return nil, 0, ErrTenantReq
+	}
 	// total count
 	countSQL, countArgs, err := applyFilters(
 		squirrel.Select("COUNT(*)").From(quote(r.Table)).PlaceholderFormat(squirrel.Dollar), r, q,
@@ -104,8 +107,13 @@ func (s *Store) Get(ctx context.Context, r *schema.Resource, id, tenantID string
 	if !validUUID(id) {
 		return nil, fmt.Errorf("%w: invalid id format", ErrValidation)
 	}
-	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
-		return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+	if r.TenantScope {
+		if tenantID == "" {
+			return nil, ErrTenantReq
+		}
+		if !validUUID(tenantID) {
+			return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+		}
 	}
 	b := squirrel.Select(columnList(r)...).From(quote(r.Table)).PlaceholderFormat(squirrel.Dollar).
 		Where(squirrel.Expr(quote(r.IDColumn)+" = ?::uuid", id))
@@ -131,11 +139,13 @@ func (s *Store) Get(ctx context.Context, r *schema.Resource, id, tenantID string
 
 // Create inserts a row from body (settable columns only) and returns it.
 func (s *Store) Create(ctx context.Context, r *schema.Resource, body map[string]any, tenantID string) (map[string]any, error) {
-	if r.TenantScope && tenantID == "" {
-		return nil, ErrTenantReq
-	}
-	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
-		return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+	if r.TenantScope {
+		if tenantID == "" {
+			return nil, ErrTenantReq
+		}
+		if !validUUID(tenantID) {
+			return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+		}
 	}
 	for _, c := range r.Columns {
 		if c.Required && c.Settable {
@@ -186,8 +196,13 @@ func (s *Store) Update(ctx context.Context, r *schema.Resource, id string, body 
 	if !validUUID(id) {
 		return nil, fmt.Errorf("%w: invalid id format", ErrValidation)
 	}
-	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
-		return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+	if r.TenantScope {
+		if tenantID == "" {
+			return nil, ErrTenantReq
+		}
+		if !validUUID(tenantID) {
+			return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+		}
 	}
 	matched, args, err := writeColumns(r, body)
 	if err != nil {
@@ -205,7 +220,7 @@ func (s *Store) Update(ctx context.Context, r *schema.Resource, id string, body 
 	}
 	args = append(args, id)
 	where := fmt.Sprintf("%s = $%d::uuid", quote(r.IDColumn), len(args))
-	if r.TenantScope && tenantID != "" {
+	if r.TenantScope {
 		args = append(args, tenantID)
 		where += fmt.Sprintf(" AND %s = $%d::uuid", quote("tenant_id"), len(args))
 	}
@@ -231,12 +246,17 @@ func (s *Store) Delete(ctx context.Context, r *schema.Resource, id, tenantID str
 	if !validUUID(id) {
 		return fmt.Errorf("%w: invalid id format", ErrValidation)
 	}
-	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
-		return fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+	if r.TenantScope {
+		if tenantID == "" {
+			return ErrTenantReq
+		}
+		if !validUUID(tenantID) {
+			return fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+		}
 	}
 	args := []any{id}
 	where := fmt.Sprintf("%s = $1::uuid", quote(r.IDColumn))
-	if r.TenantScope && tenantID != "" {
+	if r.TenantScope {
 		args = append(args, tenantID)
 		where += fmt.Sprintf(" AND %s = $2::uuid", quote("tenant_id"))
 	}
@@ -254,7 +274,7 @@ func (s *Store) Delete(ctx context.Context, r *schema.Resource, id, tenantID str
 // ── helpers ──────────────────────────────────────────────────
 
 func applyFilters(b squirrel.SelectBuilder, r *schema.Resource, q ListQuery) squirrel.SelectBuilder {
-	if r.TenantScope && q.TenantID != "" {
+	if r.TenantScope {
 		b = b.Where(squirrel.Expr(quote("tenant_id")+" = ?::uuid", q.TenantID))
 	}
 	// deterministic filter order
@@ -280,7 +300,7 @@ func applyFilters(b squirrel.SelectBuilder, r *schema.Resource, q ListQuery) squ
 }
 
 func scopeTenant(b squirrel.SelectBuilder, r *schema.Resource, tenantID string) squirrel.SelectBuilder {
-	if r.TenantScope && tenantID != "" {
+	if r.TenantScope {
 		return b.Where(squirrel.Expr(quote("tenant_id")+" = ?::uuid", tenantID))
 	}
 	return b
