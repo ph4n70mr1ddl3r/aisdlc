@@ -180,6 +180,12 @@ func (a *API) fail(c *gin.Context, err error) {
 }
 
 func atoi(s string) int {
-	n, _ := strconv.Atoi(s)
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0
+	}
 	return n
 }

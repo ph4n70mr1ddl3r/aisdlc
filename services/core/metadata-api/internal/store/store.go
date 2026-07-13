@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/ph4n70mr1ddl3r/aisdlc/services/core/metadata-api/internal/schema"
 )
+
+var uuidRE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // Sentinel errors. Handlers map these to HTTP statuses.
 var (
@@ -92,8 +95,18 @@ func (s *Store) List(ctx context.Context, r *schema.Resource, q ListQuery) ([]ma
 	return out, total, nil
 }
 
+func validUUID(s string) bool {
+	return uuidRE.MatchString(s)
+}
+
 // Get returns one row by id (and tenant_id if scoped).
 func (s *Store) Get(ctx context.Context, r *schema.Resource, id, tenantID string) (map[string]any, error) {
+	if !validUUID(id) {
+		return nil, fmt.Errorf("%w: invalid id format", ErrValidation)
+	}
+	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
+		return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+	}
 	b := squirrel.Select(columnList(r)...).From(quote(r.Table)).PlaceholderFormat(squirrel.Dollar).
 		Where(squirrel.Expr(quote(r.IDColumn)+" = ?::uuid", id))
 	b = scopeTenant(b, r, tenantID)
@@ -120,6 +133,9 @@ func (s *Store) Get(ctx context.Context, r *schema.Resource, id, tenantID string
 func (s *Store) Create(ctx context.Context, r *schema.Resource, body map[string]any, tenantID string) (map[string]any, error) {
 	if r.TenantScope && tenantID == "" {
 		return nil, ErrTenantReq
+	}
+	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
+		return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
 	}
 	for _, c := range r.Columns {
 		if c.Required && c.Settable {
@@ -167,6 +183,12 @@ func (s *Store) Create(ctx context.Context, r *schema.Resource, body map[string]
 
 // Update patches a row by id with the settable columns present in body.
 func (s *Store) Update(ctx context.Context, r *schema.Resource, id string, body map[string]any, tenantID string) (map[string]any, error) {
+	if !validUUID(id) {
+		return nil, fmt.Errorf("%w: invalid id format", ErrValidation)
+	}
+	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
+		return nil, fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+	}
 	matched, args, err := writeColumns(r, body)
 	if err != nil {
 		return nil, err
@@ -206,6 +228,12 @@ func (s *Store) Update(ctx context.Context, r *schema.Resource, id string, body 
 
 // Delete removes a row by id (and tenant_id if scoped).
 func (s *Store) Delete(ctx context.Context, r *schema.Resource, id, tenantID string) error {
+	if !validUUID(id) {
+		return fmt.Errorf("%w: invalid id format", ErrValidation)
+	}
+	if r.TenantScope && tenantID != "" && !validUUID(tenantID) {
+		return fmt.Errorf("%w: invalid tenant_id format", ErrValidation)
+	}
 	args := []any{id}
 	where := fmt.Sprintf("%s = $1::uuid", quote(r.IDColumn))
 	if r.TenantScope && tenantID != "" {
@@ -362,6 +390,9 @@ func decode(v any) any {
 func columnList(r *schema.Resource) []string {
 	out := make([]string, 0, len(r.Columns))
 	for _, c := range r.Columns {
+		if c.Sensitive {
+			continue
+		}
 		if c.Type == schema.TypeUUID {
 			// cast to text so values come back as plain strings, never [16]byte
 			out = append(out, quote(c.Name)+"::text AS "+quote(c.Name))

@@ -17,10 +17,11 @@ const (
 
 // Column describes one column of a resource.
 type Column struct {
-	Name     string  // DB column name
-	Type     ColType
-	Settable bool // false for generated columns (id, *_at, tenant_id); ignored on write
-	Required bool // must be present and non-empty on create
+	Name      string  // DB column name
+	Type      ColType
+	Settable  bool // false for generated columns (id, *_at, tenant_id); ignored on write
+	Required  bool // must be present and non-empty on create
+	Sensitive bool // true for secrets (password_hash, tokens); excluded from GET responses
 }
 
 // Resource describes a dictionary table exposed as CRUD.
