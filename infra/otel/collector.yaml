@@ -1,4 +1,4 @@
-# OpenTelemetry Collector — minimal pipeline.
+# OpenTelemetry Collector — production-oriented pipeline.
 # Receives OTLP (gRPC :4317 / HTTP :4318) from all services and fans out to:
 #   traces  → Tempo (OTLP gRPC)
 #   metrics → Prometheus (exposed as a scrape endpoint on :8889)
@@ -16,6 +16,14 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
 exporters:
   otlp/tempo:
     endpoint: tempo:4317
@@ -29,13 +37,17 @@ exporters:
     endpoint: http://loki:3100/otlp
 
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
+      processors: [memory_limiter, batch]
       exporters: [otlp/tempo]
     metrics:
       receivers: [otlp]
+      processors: [memory_limiter, batch]
       exporters: [prometheus]
     logs:
       receivers: [otlp]
+      processors: [memory_limiter, batch]
       exporters: [otlphttp/loki]

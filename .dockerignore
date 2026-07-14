@@ -18,6 +18,7 @@ build/
 coverage.out
 *.test
 *.md
+!shared/**/*.md
 .DS_Store
 Thumbs.db
 *.swp

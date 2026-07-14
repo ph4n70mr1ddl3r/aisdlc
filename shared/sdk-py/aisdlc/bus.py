@@ -88,5 +88,9 @@ def _match(pattern: str, subject: str) -> bool:
     if pattern == subject:
         return True
     if pattern.endswith(".*"):
-        return subject.startswith(pattern[:-1])  # keep the trailing dot
+        prefix = pattern[:-1]
+        if not subject.startswith(prefix):
+            return False
+        tail = subject[len(prefix):]
+        return "." in tail and "." not in tail[1:]
     return False

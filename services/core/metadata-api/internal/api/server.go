@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -68,12 +69,13 @@ func resolveTenant(c *gin.Context) {
 	c.Next()
 }
 
-// corsMiddleware reads CORS_ORIGIN (default *) for development. Lock to a
-// specific origin (e.g. http://localhost:3000) in production.
+// corsMiddleware reads CORS_ORIGIN (defaults to http://localhost:3000 for dev).
+// Set to a specific origin (e.g. http://yourdomain.com) in production, or set
+// CORS_ORIGIN=* to allow all origins (development convenience only).
 func corsMiddleware(c *gin.Context) {
 	origin := os.Getenv("CORS_ORIGIN")
 	if origin == "" {
-		origin = "*"
+		origin = "http://localhost:3000"
 	}
 	c.Header("Access-Control-Allow-Origin", origin)
 	c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
@@ -201,7 +203,8 @@ func (a *API) fail(c *gin.Context, err error) {
 	case errors.Is(err, store.ErrValidation):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("internal error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 }
 

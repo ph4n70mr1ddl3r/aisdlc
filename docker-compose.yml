@@ -57,8 +57,9 @@ services:
   redis:
     <<: *restart
     image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-redis}"]
     ports: [ "6379:6379" ]
-    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 3s, retries: 10 }
+    healthcheck: { test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis}", "ping"], interval: 10s, timeout: 3s, retries: 10 }
 
   qdrant:
     <<: *restart
@@ -85,33 +86,33 @@ services:
   # ── Observability ──
   otel-collector:
     <<: *restart
-    image: otel/opentelemetry-collector-contrib:latest
+    image: otel/opentelemetry-collector-contrib:0.102.0
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes: [ "./infra/otel/collector.yaml:/etc/otelcol/config.yaml:ro"]
     depends_on: [ tempo, loki ]
 
   tempo:
     <<: *restart
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.4.0
     command: ["-config.file=/etc/tempo.yaml"]
     volumes: ["./infra/otel/tempo.yaml:/etc/tempo.yaml:ro", "tempo:/var/tempo"]
 
   loki:
     <<: *restart
-    image: grafana/loki:latest
+    image: grafana/loki:3.0.0
     command: ["-config.file=/etc/loki/local-config.yaml"]
     volumes: ["loki:/loki"]
     ports: [ "3100:3100" ]
 
   prometheus:
     <<: *restart
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.53.0
     volumes: ["./infra/otel/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
     ports: [ "9090:9090" ]
 
   grafana:
     <<: *restart
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.1.0
     environment:
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin}"
     ports: [ "3001:3000" ]
@@ -236,7 +237,7 @@ services:
       OTEL_SERVICE_NAME: identity
       DATABASE_URL: *meta-db
       NATS_URL: *nats
-      JWT_SIGNING_KEY: "${JWT_SIGNING_KEY:-dev-secret}"
+      JWT_SIGNING_KEY: "${JWT_SIGNING_KEY}"
     depends_on: { postgres-meta: { condition: service_healthy } }
 
   portal:                        # generic UI renderer (reads metadata via ui-registry)

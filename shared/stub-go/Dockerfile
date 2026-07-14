@@ -17,7 +17,10 @@ RUN go mod init "github.com/ph4n70mr1ddl3r/aisdlc/${SERVICE_DIR}" && \
     CGO_ENABLED=0 go build -trimpath -o "/server" "./${SERVICE_DIR}"
 
 FROM alpine:3.20
+RUN addgroup -S app && adduser -S app -G app && \
+    apk add --no-cache ca-certificates wget
 COPY --from=build /server /server
+USER app
 EXPOSE ${PORT}
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 CMD wget -qO- "http://localhost:${PORT}/healthz" >/dev/null 2>&1 || exit 1
 CMD ["/server"]

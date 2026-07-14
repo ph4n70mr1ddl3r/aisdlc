@@ -3,6 +3,8 @@ package aisdlc
 import (
 	"context"
 	"errors"
+	"log"
+	"strings"
 	"sync"
 )
 
@@ -94,7 +96,7 @@ func (b *MemoryBus) Publish(ctx context.Context, env Envelope) error {
 	for _, s := range subs {
 		if s.stream == env.Stream && matchSubject(s.pattern, env.Subject) {
 			if err := s.h(ctx, env); err != nil {
-				return err
+				log.Printf("aisdlc: subscriber error on stream %q subject %q: %v", s.stream, env.Subject, err)
 			}
 		}
 	}
@@ -126,7 +128,12 @@ func matchSubject(pattern, subject string) bool {
 		return true
 	}
 	if n := len(pattern); n > 2 && pattern[n-2:n] == ".*" {
-		return len(subject) > n-2 && subject[:n-2] == pattern[:n-2]
+		prefix := pattern[:n-2]
+		if !strings.HasPrefix(subject, prefix) {
+			return false
+		}
+		tail := subject[len(prefix):]
+		return strings.HasPrefix(tail, ".") && !strings.Contains(tail[1:], ".")
 	}
 	return false
 }

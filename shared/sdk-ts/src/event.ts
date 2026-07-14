@@ -57,11 +57,9 @@ export function newEnvelope<P>(
 }
 
 function randomUuid(): string {
-  const g = globalThis as { crypto?: { randomUUID?: () => string } };
-  if (g.crypto?.randomUUID) return g.crypto.randomUUID(); // Node 16.7+/browsers
-  // RFC 4122 v4 fallback for old runtimes.
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
+  const g = globalThis as { crypto?: { randomUUID: () => string } };
+  if (g.crypto?.randomUUID) {
+    return g.crypto.randomUUID();
+  }
+  throw new EnvelopeError("crypto.randomUUID is not available — upgrade Node.js to 16.7+ or use a polyfill");
 }

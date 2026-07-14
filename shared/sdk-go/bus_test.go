@@ -3,6 +3,7 @@ package aisdlc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -45,24 +46,27 @@ func TestMemoryStore_ConcurrentSafe(t *testing.T) {
 	const goroutines = 10
 	const idsPerGoroutine = 100
 
-	done := make(chan struct{}, goroutines)
+	errCh := make(chan error, goroutines*idsPerGoroutine)
 	for g := 0; g < goroutines; g++ {
 		g := g
 		go func() {
-			defer func() { done <- struct{}{} }()
 			for i := 0; i < idsPerGoroutine; i++ {
-				id := string(rune(g*idsPerGoroutine + i))
+				id := fmt.Sprintf("%d-%d", g, i)
 				if _, err := s.Seen(id); err != nil {
-					t.Errorf("Seen: %v", err)
+					errCh <- err
 					return
 				}
 			}
+			errCh <- nil
 		}()
 	}
 
 	for g := 0; g < goroutines; g++ {
 		select {
-		case <-done:
+		case err := <-errCh:
+			if err != nil {
+				t.Errorf("Seen: %v", err)
+			}
 		case <-ctx.Done():
 			t.Fatal("timeout waiting for goroutines")
 		}
@@ -351,13 +355,16 @@ func TestMatchSubject_Prefix(t *testing.T) {
 	if !matchSubject("foo.*", "foo.bar") {
 		t.Error("expected foo.* to match foo.bar")
 	}
-	if !matchSubject("foo.*", "foo.bar.baz") {
-		t.Error("expected foo.* to match foo.bar.baz (prefix match)")
+	if matchSubject("foo.*", "foo.bar.baz") {
+		t.Error("expected foo.* NOT to match foo.bar.baz (single-level wildcard)")
 	}
 	if matchSubject("foo.*", "foobar.baz") {
 		t.Error("expected foo.* not to match foobar.baz")
 	}
 	if matchSubject("foo.*", "other.bar") {
 		t.Error("expected foo.* not to match other.bar")
+	}
+	if !matchSubject("foo.bar.*", "foo.bar.baz") {
+		t.Error("expected foo.bar.* to match foo.bar.baz")
 	}
 }

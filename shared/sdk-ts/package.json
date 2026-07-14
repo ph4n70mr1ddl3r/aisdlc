@@ -3,11 +3,11 @@
   "version": "0.0.1",
   "description": "Shared SDK for the Agentic SDLC Platform (event envelope + bus).",
   "license": "MIT",
+  "private": true,
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "src",
     "dist"
   ],
   "scripts": {

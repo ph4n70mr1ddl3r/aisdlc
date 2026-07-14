@@ -7,7 +7,14 @@ import (
 )
 
 func Resources() []*schema.Resource {
-	return allResources
+	out := make([]*schema.Resource, len(allResources))
+	for i, r := range allResources {
+		r2 := *r
+		r2.Columns = make([]schema.Column, len(r.Columns))
+		copy(r2.Columns, r.Columns)
+		out[i] = &r2
+	}
+	return out
 }
 
 var (

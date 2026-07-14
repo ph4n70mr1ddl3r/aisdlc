@@ -18,17 +18,25 @@ import (
 // Run starts a stub HTTP server on the given port with /healthz and / endpoints.
 // Blocks until SIGINT/SIGTERM, then performs a graceful 5-second shutdown.
 func Run(port string) {
+	svcName := os.Getenv("OTEL_SERVICE_NAME")
+	corsOrigin := os.Getenv("CORS_ORIGIN")
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
 		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
 			log.Printf("stub: /healthz encode: %v", err)
 		}
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		svc := os.Getenv("OTEL_SERVICE_NAME")
-		if err := json.NewEncoder(w).Encode(map[string]string{"service": svc}); err != nil {
+		w.Header().Set("Access-Control-Allow-Origin", corsOrigin)
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		if err := json.NewEncoder(w).Encode(map[string]string{"service": svcName}); err != nil {
 			log.Printf("stub: / encode: %v", err)
 		}
 	})
