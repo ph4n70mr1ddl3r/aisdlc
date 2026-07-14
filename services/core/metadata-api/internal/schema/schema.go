@@ -47,11 +47,13 @@ func (r *Resource) Column(n string) *Column {
 	return nil
 }
 
-// Writable returns the settable columns (used by create/update).
+// Writable returns the settable, non-sensitive columns (used by create/update).
+// Sensitive columns (e.g. password_hash) are excluded from direct CRUD writes;
+// they must be set by higher-level services (identity, etc.).
 func (r *Resource) Writable() []Column {
 	out := make([]Column, 0, len(r.Columns))
 	for _, c := range r.Columns {
-		if c.Settable {
+		if c.Settable && !c.Sensitive {
 			out = append(out, c)
 		}
 	}

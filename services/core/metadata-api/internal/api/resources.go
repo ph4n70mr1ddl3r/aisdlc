@@ -52,7 +52,7 @@ var allResources = []*schema.Resource{
 		Columns: cols(
 			schema.Column{Name: "tenant_id", Type: uuid0},
 			schema.Column{Name: "username", Type: text, Settable: true, Required: true},
-			schema.Column{Name: "password_hash", Type: text, Settable: true, Required: true, Sensitive: true},
+			schema.Column{Name: "password_hash", Type: text, Settable: true, Sensitive: true},
 			schema.Column{Name: "name", Type: text, Settable: true},
 			schema.Column{Name: "status", Type: text, Settable: true},
 		),

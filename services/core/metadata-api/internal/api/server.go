@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -67,9 +68,14 @@ func resolveTenant(c *gin.Context) {
 	c.Next()
 }
 
-// corsMiddleware allows all origins (development mode). Tighten for production.
+// corsMiddleware reads CORS_ORIGIN (default *) for development. Lock to a
+// specific origin (e.g. http://localhost:3000) in production.
 func corsMiddleware(c *gin.Context) {
-	c.Header("Access-Control-Allow-Origin", "*")
+	origin := os.Getenv("CORS_ORIGIN")
+	if origin == "" {
+		origin = "*"
+	}
+	c.Header("Access-Control-Allow-Origin", origin)
 	c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 	c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-ID")
 	if c.Request.Method == http.MethodOptions {
