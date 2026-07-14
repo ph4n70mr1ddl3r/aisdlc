@@ -32,9 +32,9 @@ class Envelope:
             raise EnvelopeError("envelope.id is required")
         if not (self.stream and self.type and self.subject):
             raise EnvelopeError("envelope stream/type/subject are required")
-        if self.version < 1 or self.version > ENVELOPE_VERSION:
+        if self.version < 1:
             raise EnvelopeError(
-                f"envelope version mismatch: {self.version} not in [1, {ENVELOPE_VERSION}]"
+                f"envelope version mismatch: {self.version} is below minimum (1)"
             )
         if self.payload is None:
             raise EnvelopeError("envelope.payload is required")

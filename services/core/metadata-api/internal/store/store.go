@@ -153,9 +153,17 @@ func (s *Store) Create(ctx context.Context, r *schema.Resource, body map[string]
 		}
 	}
 	for _, c := range r.Columns {
-		if c.Required && c.Settable {
+		if c.Required && c.Settable && !c.Sensitive {
 			if v, ok := body[c.Name]; !ok || isEmpty(v) {
 				return nil, fmt.Errorf("%w: %s is required", ErrValidation, c.Name)
+			}
+		}
+		if c.Type == schema.TypeUUID && c.Settable {
+			if v, ok := body[c.Name]; ok {
+				s, ok := v.(string)
+				if !ok || !validUUID(s) {
+					return nil, fmt.Errorf("%w: %s must be a valid UUID", ErrValidation, c.Name)
+				}
 			}
 		}
 	}

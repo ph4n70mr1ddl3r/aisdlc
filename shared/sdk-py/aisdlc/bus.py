@@ -59,11 +59,14 @@ class MemoryBus:
     """In-process Bus for unit tests. Not for production."""
 
     def __init__(self) -> None:
+        self._lock = threading.Lock()
         self._subs: list[tuple[str, str, Handler]] = []
 
     def publish(self, env: Envelope) -> None:
         env.validate()
-        for stream, pattern, handler in list(self._subs):
+        with self._lock:
+            subs = list(self._subs)
+        for stream, pattern, handler in subs:
             if stream == env.stream and _match(pattern, env.subject):
                 handler(env)
 
@@ -71,13 +74,15 @@ class MemoryBus:
         if not stream or handler is None:
             raise ValueError("stream and handler are required")
         entry = (stream, subject, handler)
-        self._subs.append(entry)
+        with self._lock:
+            self._subs.append(entry)
 
         def close() -> None:
-            try:
-                self._subs.remove(entry)
-            except ValueError:
-                pass
+            with self._lock:
+                try:
+                    self._subs.remove(entry)
+                except ValueError:
+                    pass
 
         return close
 
@@ -89,8 +94,5 @@ def _match(pattern: str, subject: str) -> bool:
         return True
     if pattern.endswith(".*"):
         prefix = pattern[:-1]
-        if not subject.startswith(prefix):
-            return False
-        tail = subject[len(prefix):]
-        return "." in tail and "." not in tail[1:]
+        return subject.startswith(prefix) and "." not in subject[len(prefix):]
     return False

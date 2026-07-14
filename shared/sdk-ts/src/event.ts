@@ -24,9 +24,9 @@ export function validateEnvelope(env: Envelope): void {
   if (!env.stream || !env.type || !env.subject) {
     throw new EnvelopeError("envelope stream/type/subject are required");
   }
-  if (env.version < 1 || env.version > ENVELOPE_VERSION) {
+  if (env.version < 1) {
     throw new EnvelopeError(
-      `envelope version mismatch: ${env.version} not in [1, ${ENVELOPE_VERSION}]`,
+      `envelope version mismatch: ${env.version} is below minimum (1)`,
     );
   }
   if (env.payload === undefined || env.payload === null) {

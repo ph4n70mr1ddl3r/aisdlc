@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log"
 	"net/http"
@@ -16,6 +18,7 @@ import (
 
 const (
 	ctxTenant    = "tenantID"
+	ctxReqID     = "requestID"
 	maxBodyBytes = 1 << 20 // 1 MB
 )
 
@@ -23,7 +26,7 @@ const (
 func NewRouter(s *store.Store) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger(), resolveTenant, corsMiddleware, maxBodyMiddleware)
+	r.Use(gin.Recovery(), gin.Logger(), correlationID, resolveTenant, corsMiddleware, maxBodyMiddleware)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -67,6 +70,28 @@ func resolveTenant(c *gin.Context) {
 		c.Set(ctxTenant, t)
 	}
 	c.Next()
+}
+
+// correlationID sets a unique request ID on every request for tracing.
+func correlationID(c *gin.Context) {
+	id := c.GetHeader("X-Request-ID")
+	if id == "" {
+		var b [16]byte
+		if _, err := rand.Read(b[:]); err == nil {
+			id = hex.EncodeToString(b[:])
+		}
+	}
+	if id != "" {
+		c.Set(ctxReqID, id)
+		c.Header("X-Request-ID", id)
+	}
+	c.Next()
+}
+
+func requestID(c *gin.Context) string {
+	v, _ := c.Get(ctxReqID)
+	s, _ := v.(string)
+	return s
 }
 
 // corsMiddleware reads CORS_ORIGIN (defaults to http://localhost:3000 for dev).
@@ -203,7 +228,7 @@ func (a *API) fail(c *gin.Context, err error) {
 	case errors.Is(err, store.ErrValidation):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
-		log.Printf("internal error: %v", err)
+		log.Printf("request=%s internal error: %v", requestID(c), err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 }

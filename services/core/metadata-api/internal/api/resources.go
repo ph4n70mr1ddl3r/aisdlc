@@ -75,8 +75,9 @@ var allResources = []*schema.Resource{
 		Searchable: []string{"name"}, OrderBy: "created_at DESC",
 	},
 	{
-		Name: "role_assignments", Singular: "role_assignment", Table: "role_assignments", IDColumn: "id",
+		Name: "role_assignments", Singular: "role_assignment", Table: "role_assignments", IDColumn: "id", TenantScope: true,
 		Columns: colsNoUpdate(
+			schema.Column{Name: "tenant_id", Type: uuid0},
 			schema.Column{Name: "user_id", Type: uuid0, Settable: true, Required: true},
 			schema.Column{Name: "role_id", Type: uuid0, Settable: true, Required: true},
 			schema.Column{Name: "scope", Type: text, Settable: true},

@@ -51,6 +51,15 @@ func loadMigrations() ([]migrationFile, error) {
 	return ms, nil
 }
 
+// rollback attempts to roll back a transaction; if that also fails it wraps
+// the original error with the rollback failure.
+func rollback(tx pgx.Tx, ctx context.Context, origErr error) error {
+	if rbErr := tx.Rollback(ctx); rbErr != nil {
+		return fmt.Errorf("%w (rollback: %v)", origErr, rbErr)
+	}
+	return origErr
+}
+
 // Migrate applies all pending migrations in order, each in its own transaction.
 // It is safe to call on every boot.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
@@ -78,16 +87,10 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			return err
 		}
 		if _, err := tx.Exec(ctx, m.upSQL); err != nil {
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				return fmt.Errorf("apply migration %s: %w (rollback: %v)", m.version, err, rbErr)
-			}
-			return fmt.Errorf("apply migration %s: %w", m.version, err)
+			return rollback(tx, ctx, fmt.Errorf("apply migration %s: %w", m.version, err))
 		}
 		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations(version) VALUES ($1)", m.version); err != nil {
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				return fmt.Errorf("record migration %s: %w (rollback: %v)", m.version, err, rbErr)
-			}
-			return fmt.Errorf("record migration %s: %w", m.version, err)
+			return rollback(tx, ctx, fmt.Errorf("record migration %s: %w", m.version, err))
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return err

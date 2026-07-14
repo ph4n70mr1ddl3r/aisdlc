@@ -47,11 +47,12 @@ CREATE TABLE roles (
 
 CREATE TABLE role_assignments (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     user_id     uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id     uuid NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     scope       text,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (user_id, role_id, scope)
+    UNIQUE (tenant_id, user_id, role_id, scope)
 );
 
 -- ── Layer 1: Application Model ───────────────────────────────
