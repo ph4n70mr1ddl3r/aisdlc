@@ -11,7 +11,11 @@ const server = http.createServer((req, res) => {
 });
 server.listen(port, () => console.log("stub listening on :" + port));
 
-// Graceful shutdown
-const shutdown = () => { console.log("stub: shutting down..."); server.close(() => process.exit(0)); };
+// Graceful shutdown with 5s timeout
+const shutdown = () => {
+  console.log("stub: shutting down...");
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 5000).unref();
+};
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

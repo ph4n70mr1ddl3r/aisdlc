@@ -159,6 +159,11 @@ func (s *Store) Create(ctx context.Context, r *schema.Resource, body map[string]
 			}
 		}
 	}
+	if r.Validate != nil {
+		if err := r.Validate(body); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrValidation, err)
+		}
+	}
 
 	matched, args, err := writeColumns(r, body)
 	if err != nil {

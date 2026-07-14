@@ -2,7 +2,8 @@
  * Bus abstraction + idempotent consumer helper (ARCHITECTURE.md §6).
  * M0 skeleton: in-memory implementation for tests; NATS transport in M1.
  */
-import type { Envelope } from "./event.js";
+import { validateEnvelope, type Envelope } from "./event.js";
+
 
 export type Handler<P = unknown> = (env: Envelope<P>) => void | Promise<void>;
 
@@ -46,6 +47,7 @@ export class MemoryBus implements Bus {
     [];
 
   async publish(env: Envelope): Promise<void> {
+    validateEnvelope(env);
     for (const s of this.subs.slice()) {
       if (s.stream === env.stream && matchSubject(s.pattern, env.subject)) {
         await s.handler(env);

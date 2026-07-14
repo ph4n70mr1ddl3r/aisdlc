@@ -26,14 +26,15 @@ type Column struct {
 
 // Resource describes a dictionary table exposed as CRUD.
 type Resource struct {
-	Name        string   // plural URL segment, e.g. "entities"
-	Singular    string   // singular label, for error messages
-	Table       string   // DB table name
-	IDColumn    string   // primary key (always "id" here)
-	TenantScope bool     // if true, list/get/create are scoped by tenant_id from context
-	Columns     []Column // all columns, in table order
-	Searchable  []string // text columns scanned by ?q=
-	OrderBy     string   // default ORDER BY, e.g. "created_at DESC"
+	Name        string                      // plural URL segment, e.g. "entities"
+	Singular    string                      // singular label, for error messages
+	Table       string                      // DB table name
+	IDColumn    string                      // primary key (always "id" here)
+	TenantScope bool                        // if true, list/get/create are scoped by tenant_id from context
+	Columns     []Column                    // all columns, in table order
+	Searchable  []string                    // text columns scanned by ?q=
+	OrderBy     string                      // default ORDER BY, e.g. "created_at DESC"
+	Validate    func(body map[string]any) error // optional per-resource validation hook
 }
 
 // Column returns the column named n (by DB name), or nil if absent.

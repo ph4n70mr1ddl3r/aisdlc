@@ -1,6 +1,10 @@
 package api
 
-import "github.com/ph4n70mr1ddl3r/aisdlc/services/core/metadata-api/internal/schema"
+import (
+	"errors"
+
+	"github.com/ph4n70mr1ddl3r/aisdlc/services/core/metadata-api/internal/schema"
+)
 
 func Resources() []*schema.Resource {
 	return allResources
@@ -160,6 +164,14 @@ var allResources = []*schema.Resource{
 			schema.Column{Name: "message", Type: text, Settable: true},
 		),
 		OrderBy: "created_at DESC",
+		Validate: func(body map[string]any) error {
+			_, hasEntity := body["entity_id"]
+			_, hasField := body["field_id"]
+			if !hasEntity && !hasField {
+				return errors.New("validation: at least one of entity_id or field_id is required")
+			}
+			return nil
+		},
 	},
 
 	{

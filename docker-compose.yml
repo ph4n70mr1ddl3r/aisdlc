@@ -311,7 +311,7 @@ services:
       context: .
       dockerfile: shared/stub-go/Dockerfile
       args: { SERVICE_DIR: services/platform/vcs, PORT: "8000" }
-    volumes: [ "repos:/repos", "/var/run/docker.sock:/var/run/docker.sock:ro" ]
+    volumes: [ "repos:/repos" ]
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: vcs
