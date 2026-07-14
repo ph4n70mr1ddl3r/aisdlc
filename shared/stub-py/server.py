@@ -65,8 +65,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/":
             self._send(200, {"service": _OTEL_SERVICE_NAME})
         else:
-            self.send_response(404)
-            self.end_headers()
+            self._send(404, {"error": "not found"})
 
     def log_message(self, fmt, *args):
         pass

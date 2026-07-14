@@ -20,6 +20,9 @@ import (
 func Run(port string) {
 	svcName := os.Getenv("OTEL_SERVICE_NAME")
 	corsOrigin := os.Getenv("CORS_ORIGIN")
+	if corsOrigin == "" {
+		corsOrigin = "http://localhost:3000"
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {

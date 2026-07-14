@@ -56,6 +56,7 @@ export class MemoryBus implements Bus {
   }
 
   subscribe(stream: string, subject: string, handler: Handler): Subscription {
+    if (!stream || !handler) throw new Error("stream and handler are required");
     const entry = { stream, pattern: subject, handler };
     this.subs.push(entry);
     const subs = this.subs;
@@ -68,10 +69,13 @@ export class MemoryBus implements Bus {
   }
 }
 
-/** Minimal NATS-subset matcher: empty/">" = all, exact, or trailing ".*". */
+/** Minimal NATS-subset matcher: empty/">" = all, exact, or trailing ".*" (single-level wildcard). */
 function matchSubject(pattern: string, subject: string): boolean {
   if (!pattern || pattern === ">") return true;
   if (pattern === subject) return true;
-  if (pattern.endsWith(".*")) return subject.startsWith(pattern.slice(0, -1));
+  if (pattern.endsWith(".*")) {
+    const prefix = pattern.slice(0, -1);
+    return subject.startsWith(prefix) && !subject.slice(prefix.length).includes(".");
+  }
   return false;
 }

@@ -41,19 +41,18 @@ class Envelope:
 
     def to_json(self) -> str:
         self.validate()
-        return json.dumps(
-            {
-                "id": self.id,
-                "stream": self.stream,
-                "type": self.type,
-                "ts": self.ts.isoformat(),
-                "trace_id": self.trace_id,
-                "subject": self.subject,
-                "payload": self.payload,
-                "version": self.version,
-            },
-            sort_keys=True,
-        )
+        d: dict[str, Any] = {
+            "id": self.id,
+            "stream": self.stream,
+            "type": self.type,
+            "ts": self.ts.isoformat(),
+            "subject": self.subject,
+            "payload": self.payload,
+            "version": self.version,
+        }
+        if self.trace_id is not None:
+            d["trace_id"] = self.trace_id
+        return json.dumps(d, sort_keys=True)
 
     @classmethod
     def from_json(cls, data: str | bytes) -> "Envelope":

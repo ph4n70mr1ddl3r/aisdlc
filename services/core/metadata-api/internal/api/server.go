@@ -4,11 +4,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,11 +18,20 @@ import (
 	"github.com/ph4n70mr1ddl3r/aisdlc/services/core/metadata-api/internal/store"
 )
 
+var defaultCORSOrigin string
+
 const (
 	ctxTenant    = "tenantID"
 	ctxReqID     = "requestID"
 	maxBodyBytes = 1 << 20 // 1 MB
 )
+
+func init() {
+	defaultCORSOrigin = os.Getenv("CORS_ORIGIN")
+	if defaultCORSOrigin == "" {
+		defaultCORSOrigin = "http://localhost:3000"
+	}
+}
 
 // NewRouter builds the gin engine with /healthz and the /v1 CRUD routes.
 func NewRouter(s *store.Store) *gin.Engine {
@@ -77,14 +88,15 @@ func correlationID(c *gin.Context) {
 	id := c.GetHeader("X-Request-ID")
 	if id == "" {
 		var b [16]byte
-		if _, err := rand.Read(b[:]); err == nil {
+		if _, err := rand.Read(b[:]); err != nil {
+			log.Printf("rand.Read: %v; using time-based fallback", err)
+			id = fmt.Sprintf("%016x%016x", time.Now().UnixNano(), 0)
+		} else {
 			id = hex.EncodeToString(b[:])
 		}
 	}
-	if id != "" {
-		c.Set(ctxReqID, id)
-		c.Header("X-Request-ID", id)
-	}
+	c.Set(ctxReqID, id)
+	c.Header("X-Request-ID", id)
 	c.Next()
 }
 
@@ -98,11 +110,7 @@ func requestID(c *gin.Context) string {
 // Set to a specific origin (e.g. http://yourdomain.com) in production, or set
 // CORS_ORIGIN=* to allow all origins (development convenience only).
 func corsMiddleware(c *gin.Context) {
-	origin := os.Getenv("CORS_ORIGIN")
-	if origin == "" {
-		origin = "http://localhost:3000"
-	}
-	c.Header("Access-Control-Allow-Origin", origin)
+	c.Header("Access-Control-Allow-Origin", defaultCORSOrigin)
 	c.Header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 	c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-ID")
 	if c.Request.Method == http.MethodOptions {
