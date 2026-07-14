@@ -12,13 +12,16 @@ import (
 	"github.com/ph4n70mr1ddl3r/aisdlc/services/core/metadata-api/internal/store"
 )
 
-const ctxTenant = "tenantID"
+const (
+	ctxTenant    = "tenantID"
+	maxBodyBytes = 1 << 20 // 1 MB
+)
 
 // NewRouter builds the gin engine with /healthz and the /v1 CRUD routes.
 func NewRouter(s *store.Store) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger(), resolveTenant, corsMiddleware)
+	r.Use(gin.Recovery(), gin.Logger(), resolveTenant, corsMiddleware, maxBodyMiddleware)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -48,6 +51,11 @@ type API struct {
 
 // resolveTenant reads X-Tenant-ID (or ?tenant_id=) into the request context.
 // In M1 there is no auth; identity (M2) will set this from the session.
+func maxBodyMiddleware(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBodyBytes)
+	c.Next()
+}
+
 func resolveTenant(c *gin.Context) {
 	t := strings.TrimSpace(c.GetHeader("X-Tenant-ID"))
 	if t == "" {

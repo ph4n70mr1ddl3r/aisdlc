@@ -12,7 +12,6 @@ import http.server
 import json
 import os
 import signal
-import sys
 
 
 class _Handler(http.server.BaseHTTPRequestHandler):
@@ -39,10 +38,15 @@ def run_stub(port: int | None = None) -> None:
         port = int(os.getenv("PORT", "8000"))
     server = http.server.ThreadingHTTPServer(("0.0.0.0", port), _Handler)
 
+    shutdown_flag = False
+
     def shutdown(signum, frame):
+        nonlocal shutdown_flag
+        if shutdown_flag:
+            return
+        shutdown_flag = True
         print("stub: shutting down...", flush=True)
         server.shutdown()
-        sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)

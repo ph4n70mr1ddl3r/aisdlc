@@ -32,9 +32,9 @@ class Envelope:
             raise EnvelopeError("envelope.id is required")
         if not (self.stream and self.type and self.subject):
             raise EnvelopeError("envelope stream/type/subject are required")
-        if self.version != ENVELOPE_VERSION:
+        if self.version < 1 or self.version > ENVELOPE_VERSION:
             raise EnvelopeError(
-                f"envelope version mismatch: {self.version} != {ENVELOPE_VERSION}"
+                f"envelope version mismatch: {self.version} not in [1, {ENVELOPE_VERSION}]"
             )
         if self.payload is None:
             raise EnvelopeError("envelope.payload is required")
@@ -57,7 +57,10 @@ class Envelope:
 
     @classmethod
     def from_json(cls, data: str | bytes) -> "Envelope":
-        obj = json.loads(data)
+        try:
+            obj = json.loads(data)
+        except json.JSONDecodeError as exc:
+            raise EnvelopeError(f"invalid envelope JSON: {exc}") from exc
         try:
             return cls(
                 stream=obj["stream"],

@@ -21,13 +21,16 @@ func Run(port string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+			log.Printf("stub: /healthz encode: %v", err)
+		}
 	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"service": os.Getenv("OTEL_SERVICE_NAME"),
-		})
+		svc := os.Getenv("OTEL_SERVICE_NAME")
+		if err := json.NewEncoder(w).Encode(map[string]string{"service": svc}); err != nil {
+			log.Printf("stub: / encode: %v", err)
+		}
 	})
 
 	srv := &http.Server{

@@ -27,10 +27,10 @@ ensure-secrets: ## Create placeholder secret files if missing (gitignored)
 	@mkdir -p .secrets && test -f .secrets/deepseek_api_key || cp .secrets/deepseek_api_key.example .secrets/deepseek_api_key
 
 secrets-check: ## Prove secrets are gitignored and report key presence
-	@echo "== git-ignore check ==" && (git check-ignore .env .secrets/deepseek_api_key >/dev/null && echo "  ok: .env and .secrets/deepseek_api_key are gitignored" || (echo "  ⚠️  NOT ignored — fix .gitignore before adding a real key!"; exit 1))
-	@echo "== key presence ==" && (grep -qE 'sk-[A-Za-z0-9_-]{8,}' .secrets/deepseek_api_key && echo "  ok: DeepSeek key present" || echo "  ℹ️  DeepSeek key is empty/placeholder (ok for M0–M2; set it at M3+)")
+	@echo "== git-ignore check ==" && git check-ignore .env .secrets/deepseek_api_key >/dev/null && echo "  ok: .env and .secrets/deepseek_api_key are gitignored" || { echo "  ⚠️  NOT ignored — fix .gitignore before adding a real key!"; exit 1; }
+	@echo "== key presence ==" && grep -qE 'sk-[A-Za-z0-9_-]{8,}' .secrets/deepseek_api_key && echo "  ok: DeepSeek key present" || echo "  ℹ️  DeepSeek key is empty/placeholder (ok for M0–M2; set it at M3+)"
 
-build: ## Build all images, including the app profile
+build: config ## Build all images, including the app profile
 	$(COMPOSE) --profile app build
 
 config: ## Validate & print the resolved compose config
@@ -58,4 +58,4 @@ dev: ensure-secrets ## Hot-reload one service (SVC=portal) via docker-compose.de
 	$(COMPOSE) --profile app -f docker-compose.yml -f docker-compose.dev.yml up $(SVC)
 
 nuke: ## Stop everything AND delete all volumes (data loss!)
-	$(COMPOSE) down -v --remove-orphans
+	@read -p "Are you sure? This destroys ALL data volumes! [y/N] " -n 1 && echo "" && [ "$$REPLY" = "y" ] && $(COMPOSE) down -v --remove-orphans || echo "aborted."

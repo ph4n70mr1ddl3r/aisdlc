@@ -65,8 +65,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	for _, m := range ms {
-		var applied string
-		err := pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=$1", m.version).Scan(&applied)
+		err := pool.QueryRow(ctx, "SELECT version FROM schema_migrations WHERE version=$1", m.version).Scan(new(string))
 		if err == nil {
 			continue // already applied
 		}
@@ -79,11 +78,15 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			return err
 		}
 		if _, err := tx.Exec(ctx, m.upSQL); err != nil {
-			_ = tx.Rollback(ctx)
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				return fmt.Errorf("apply migration %s: %w (rollback: %v)", m.version, err, rbErr)
+			}
 			return fmt.Errorf("apply migration %s: %w", m.version, err)
 		}
 		if _, err := tx.Exec(ctx, "INSERT INTO schema_migrations(version) VALUES ($1)", m.version); err != nil {
-			_ = tx.Rollback(ctx)
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				return fmt.Errorf("record migration %s: %w (rollback: %v)", m.version, err, rbErr)
+			}
 			return fmt.Errorf("record migration %s: %w", m.version, err)
 		}
 		if err := tx.Commit(ctx); err != nil {

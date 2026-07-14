@@ -22,6 +22,11 @@ import (
 	"github.com/ph4n70mr1ddl3r/aisdlc/services/core/metadata-api/internal/schema"
 )
 
+const (
+	maxListLimit    = 200
+	defaultListLimit = 50
+)
+
 var uuidRE = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // Sentinel errors. Handlers map these to HTTP statuses.
@@ -73,8 +78,8 @@ func (s *Store) List(ctx context.Context, r *schema.Resource, q ListQuery) ([]ma
 	b = applyFilters(b, r, q)
 	b = b.OrderBy(orderClause(q.Order, r))
 	limit := q.Limit
-	if limit <= 0 || limit > 200 {
-		limit = 50
+	if limit <= 0 || limit > maxListLimit {
+		limit = defaultListLimit
 	}
 	offset := q.Offset
 	if offset < 0 {
@@ -360,7 +365,16 @@ func coerce(raw any, t schema.ColType) (any, error) {
 		default:
 			return nil, fmt.Errorf("want bool, got %T", raw)
 		}
-	default: // text, uuid, ts -> string only
+	case schema.TypeTime:
+		switch t := raw.(type) {
+		case string:
+			return t, nil
+		case time.Time:
+			return t.UTC().Format(time.RFC3339Nano), nil
+		default:
+			return nil, fmt.Errorf("want string or time, got %T", raw)
+		}
+	default: // text, uuid -> string only
 		s, ok := raw.(string)
 		if !ok {
 			return nil, fmt.Errorf("want string, got %T", raw)
