@@ -149,20 +149,20 @@ services:
       postgres-meta: { condition: service_healthy }
       postgres-data: { condition: service_healthy }
 
-  ddl-engine:
+  ddl-engine:                      # metadata → idempotent DDL → tenant data DB (M1)
     <<: *restart
     profiles: ["app"]
-    build:
-      context: .
-      dockerfile: shared/stub-go/Dockerfile
-      args: { SERVICE_DIR: services/core/ddl-engine, PORT: "8000" }
+    build: ./services/core/ddl-engine
     environment:
       <<: *otel-env
       OTEL_SERVICE_NAME: ddl-engine
       META_DB: *meta-db
       DATA_DB: *data-db
       NATS_URL: *nats
-    depends_on: { postgres-data: { condition: service_healthy } }
+      RECONCILE_ON_BOOT: "${DDL_RECONCILE_ON_BOOT:-0}"
+    depends_on:
+      postgres-meta: { condition: service_healthy }
+      postgres-data: { condition: service_healthy }
 
   workflow-engine:
     <<: *restart

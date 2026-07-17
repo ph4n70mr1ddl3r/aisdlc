@@ -20,7 +20,8 @@ Goal: runnable empty platform.
 Goal: define an app purely as metadata and see it work.
 - [x] `metadata-api`: typed CRUD over Layers 0–3 (tenants, users, apps, entities,
       fields, relationships, views, menus)
-- [ ] `ddl-engine`: diff metadata → idempotent SQL migrations → apply to Tenant DB
+- [x] `ddl-engine`: diff metadata → idempotent (additive) SQL → apply to Tenant DB;
+      records a `ddl_migrations` ledger; dry-run/apply/tenant-apply APIs
 - [ ] `data-api`: generic CRUD over any entity (validation, refs, filters, RLS stub)
 - [ ] `permissions-engine`: role × entity × action (field/row-level later)
 - [ ] `ui-registry` + `portal` generic renderer (list/form/detail/nav)

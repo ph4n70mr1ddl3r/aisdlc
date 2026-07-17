@@ -1,0 +1,8 @@
+# Build artifacts
+server
+ddl-engine
+*.test
+*.out
+.git
+.gitignore
+README.md

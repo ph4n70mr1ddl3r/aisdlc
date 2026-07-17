@@ -64,6 +64,6 @@ open http://localhost:3001     # grafana
 ## Status
 **M0 — Bootstrap** is complete (runnable infra + shared SDKs). **M1 —
 Model-Driven Core** is in progress: `metadata-api` (dictionary CRUD over
-Layers 0–3) has landed; `ddl-engine`, `data-api`, `permissions-engine`, and the
-portal renderer follow. See [ROADMAP.md](./ROADMAP.md). Estimated ~8–10 weeks
+Layers 0–3) and `ddl-engine` (metadata → idempotent DDL on the tenant DB) have
+landed; `data-api`, `permissions-engine`, and the portal renderer follow. See [ROADMAP.md](./ROADMAP.md). Estimated ~8–10 weeks
 to a platform that builds both metadata and code apps autonomously.
